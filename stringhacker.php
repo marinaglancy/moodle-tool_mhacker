@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * dbhacker file for tool_mhacker
+ * string hacker file for tool_mhacker
  *
  * @package    tool_mhacker
  * @copyright  2015 Marina Glancy
@@ -25,15 +25,30 @@
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
 
-$tablename = optional_param('table', null, PARAM_NOTAGS);
+$pluginname = optional_param('plugin', null, PARAM_NOTAGS);
+$action = optional_param('action', null, PARAM_NOTAGS);
 
 admin_externalpage_setup('toolmhacker', '', null, '', array('pagelayout' => 'report'));
 
-$PAGE->set_url(new moodle_url('/admin/tool/mhacker/dbhacker.php'));
+$PAGE->set_url(new moodle_url('/admin/tool/mhacker/stringhacker.php'));
 navigation_node::override_active_url(new moodle_url('/admin/tool/mhacker/index.php'));
-$title = get_string('dbhacker', 'tool_mhacker');
+$title = get_string('stringhacker', 'tool_mhacker');
 $PAGE->set_title($title);
 $PAGE->set_heading($SITE->fullname);
+
+if ($pluginname && $action === 'sort') {
+    require_sesskey();
+    $result = tool_mhacker_helper::sort_stringfile($pluginname, true);
+    redirect(new moodle_url($PAGE->url, array('plugin' => $pluginname)),
+            ($result === false) ? 'Error, file can not be re-sorted' : 'Language file has been re-sorted', 5);
+}
+if ($pluginname && $action === 'addstring') {
+    require_sesskey();
+    $result = tool_mhacker_helper::sort_stringfile($pluginname, true,
+        required_param('stringkey', PARAM_RAW), required_param('stringvalue', PARAM_RAW));
+    redirect(new moodle_url($PAGE->url, array('plugin' => $pluginname)),
+            ($result === false) ? 'Error, string can not be added' : 'String has been added to the language file', 5);
+}
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading($title);
@@ -44,16 +59,14 @@ if (!$CFG->debugdeveloper) {
     exit;
 }
 
-tool_mhacker_helper::print_tabs('dbhacker');
+tool_mhacker_helper::print_tabs('stringhacker');
 
-$tables = $DB->get_tables();
-
-if (!$tablename || !array_key_exists(strtolower($tablename), $tables)) {
-    tool_mhacker_helper::show_tables_list($tables);
-} else {
+if ($pluginname) {
     $backlink = html_writer::link($PAGE->url, 'Back');
     echo html_writer::div($backlink);
-    tool_mhacker_helper::browse_db_table($tablename);
+    tool_mhacker_helper::show_stringfile($pluginname);
+} else {
+    tool_mhacker_helper::show_stringfiles_list();
 }
 
 echo $OUTPUT->footer();

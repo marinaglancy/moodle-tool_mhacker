@@ -1,1 +1,5 @@
 .path-admin-tool-mhacker .tableslist li a.emptytable { color: gray; }
+.path-admin-tool-mhacker .stringslist tr.sorterror { background-color: yellow; }
+.path-admin-tool-mhacker .stringslist tr.keymismatch { background-color: pink; }
+.path-admin-tool-mhacker .stringslist td { vertical-align: top; }
+.path-admin-tool-mhacker .stringslist .stringkey { font-weight: bold; }

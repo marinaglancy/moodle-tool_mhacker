@@ -25,3 +25,4 @@
 $string['dbhacker'] = 'DB hacker';
 $string['error_notdebugging'] = 'Not available on this server because debugging is not set to DEVELOPER';
 $string['pluginname'] = 'Moodle hacker';
+$string['stringhacker'] = 'Strings hacker';
