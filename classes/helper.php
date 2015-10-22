@@ -211,6 +211,9 @@ class tool_mhacker_helper {
         $content = $before . join('', $tosort) . $after;
         if ($writechanges) {
             file_put_contents($filepath, $content);
+            if ($addkey) {
+                purge_all_caches();
+            }
         }
         return $content;
     }
