@@ -29,29 +29,32 @@ $tablename = optional_param('table', null, PARAM_NOTAGS);
 
 admin_externalpage_setup('toolmhacker', '', null, '', array('pagelayout' => 'report'));
 
-$PAGE->set_url(new moodle_url('/admin/tool/mhacker/dbhacker.php'));
+$baseurl = new moodle_url('/admin/tool/mhacker/dbhacker.php');
+$PAGE->set_url(new moodle_url($baseurl, array('tablename' => $tablename)));
 navigation_node::override_active_url(new moodle_url('/admin/tool/mhacker/index.php'));
 $title = get_string('dbhacker', 'tool_mhacker');
 $PAGE->set_title($title);
 $PAGE->set_heading($SITE->fullname);
+$PAGE->navbar->add($title, $baseurl);
+
+if (!$CFG->debugdeveloper) {
+    print_error('error_notdebugging', 'tool_mhacker');
+}
+
+$tables = $DB->get_tables();
+if ($tablename && array_key_exists(strtolower($tablename), $tables)) {
+    $PAGE->navbar->add($tablename);
+}
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading($title);
 
-if (!$CFG->debugdeveloper) {
-    echo $OUTPUT->notification(get_string('error_notdebugging', 'tool_mhacker'));
-    echo $OUTPUT->footer();
-    exit;
-}
-
 tool_mhacker_helper::print_tabs('dbhacker');
-
-$tables = $DB->get_tables();
 
 if (!$tablename || !array_key_exists(strtolower($tablename), $tables)) {
     tool_mhacker_helper::show_tables_list($tables);
 } else {
-    $backlink = html_writer::link($PAGE->url, 'Back');
+    $backlink = html_writer::link($baseurl, get_string('back'));
     echo html_writer::div($backlink);
     tool_mhacker_helper::browse_db_table($tablename);
 }

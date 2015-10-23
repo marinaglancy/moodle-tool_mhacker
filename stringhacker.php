@@ -30,39 +30,64 @@ $action = optional_param('action', null, PARAM_NOTAGS);
 
 admin_externalpage_setup('toolmhacker', '', null, '', array('pagelayout' => 'report'));
 
-$PAGE->set_url(new moodle_url('/admin/tool/mhacker/stringhacker.php'));
+$baseurl = new moodle_url('/admin/tool/mhacker/stringhacker.php');
+$PAGE->set_url($baseurl);
 navigation_node::override_active_url(new moodle_url('/admin/tool/mhacker/index.php'));
 $title = get_string('stringhacker', 'tool_mhacker');
 $PAGE->set_title($title);
 $PAGE->set_heading($SITE->fullname);
+$PAGE->navbar->add($title, $baseurl);
+
+if (!$CFG->debugdeveloper) {
+    print_error('error_notdebugging', 'tool_mhacker');
+}
+
+if ($pluginname) {
+    $PAGE->navbar->add($pluginname);
+}
 
 if ($pluginname && $action === 'sort') {
     require_sesskey();
     $result = tool_mhacker_helper::sort_stringfile($pluginname, true);
-    redirect(new moodle_url($PAGE->url, array('plugin' => $pluginname)),
-            ($result === false) ? 'Error, file can not be re-sorted' : 'Language file has been re-sorted', 5);
+    redirect(new moodle_url($baseurl, array('plugin' => $pluginname)),
+            ($result === false) ? get_string('errorstringsorting', 'tool_mhacker') :
+            get_string('stringssorted', 'tool_mhacker'), 5);
 }
 if ($pluginname && $action === 'addstring') {
     require_sesskey();
+    $stringkey = trim(required_param('stringkey', PARAM_ALPHANUMEXT));
     $result = tool_mhacker_helper::sort_stringfile($pluginname, true,
-        required_param('stringkey', PARAM_RAW), required_param('stringvalue', PARAM_RAW));
-    redirect(new moodle_url($PAGE->url, array('plugin' => $pluginname)),
-            ($result === false) ? 'Error, string can not be added' : 'String has been added to the language file', 5);
+        $stringkey, required_param('stringvalue', PARAM_RAW));
+    if ($result) {
+        redirect(new moodle_url($baseurl, array('plugin' => $pluginname, 'added' => $stringkey)));
+    }
+    redirect(new moodle_url($baseurl, array('plugin' => $pluginname)),
+            get_string('erroraddingstring', 'tool_mhacker'), 5);
 }
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading($title);
 
-if (!$CFG->debugdeveloper) {
-    echo $OUTPUT->notification(get_string('error_notdebugging', 'tool_mhacker'));
-    echo $OUTPUT->footer();
-    exit;
+if ($pluginname && ($stringkey = optional_param('added', null, PARAM_ALPHANUMEXT)) &&
+        get_string_manager()->string_exists($stringkey, $pluginname)) {
+
+    $stringvalue = get_string($stringkey, $pluginname);
+    $arg = preg_match('/\$a/', $stringvalue) ? ', $a' : '';
+    $example = "get_string('$stringkey', '$pluginname'$arg)";
+    $a = (object)array(
+        'key' => $stringkey,
+        'plugin' => $pluginname,
+        'value' => $stringvalue,
+        'example' => $example,
+    );
+
+    echo $OUTPUT->notification(get_string('stringadded', 'tool_mhacker', $a), 'notifysuccess');
 }
 
 tool_mhacker_helper::print_tabs('stringhacker');
 
 if ($pluginname) {
-    $backlink = html_writer::link($PAGE->url, 'Back');
+    $backlink = html_writer::link($baseurl, get_string('back'));
     echo html_writer::div($backlink);
     tool_mhacker_helper::show_stringfile($pluginname);
 } else {

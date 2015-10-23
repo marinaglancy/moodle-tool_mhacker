@@ -212,7 +212,7 @@ class tool_mhacker_helper {
         if ($writechanges) {
             file_put_contents($filepath, $content);
             if ($addkey) {
-                purge_all_caches();
+                get_string_manager()->reset_caches();
             }
         }
         return $content;
@@ -249,16 +249,19 @@ class tool_mhacker_helper {
      * @param string $pluginname
      */
     public static function show_stringfile($pluginname) {
+        global $CFG, $OUTPUT;
+        require_once($CFG->libdir.'/tablelib.php');
+
         $filepath = self::find_stringfile_path($pluginname);
 
         echo "<div>";
         if (!is_writable($filepath)) {
-            echo 'File is not writable';
+            echo $OUTPUT->notification(get_string('filenotwritable', 'tool_mhacker', $filepath));
         } else if (self::sort_stringfile($pluginname) !== false) {
             $baseurl = new moodle_url('/admin/tool/mhacker/stringhacker.php');
             $url = new moodle_url($baseurl, array('plugin' => $pluginname,
                 'action' => 'sort', 'sesskey' => sesskey()));
-            echo html_writer::link($url, 'Re-sort strings in the file') . "<br>";
+            echo html_writer::link($url, get_string('resortstrings', 'tool_mhacker')) . "<br>";
             echo html_writer::start_tag('form', array('method' => 'POST', 'action' => $baseurl));
             echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'plugin', 'value' => $pluginname));
             echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'action', 'value' => 'addstring'));
@@ -268,31 +271,38 @@ class tool_mhacker_helper {
             echo html_writer::empty_tag('input', array('type' => 'submit', 'name' => 'go', 'value' => 'Add string'));
             echo html_writer::end_tag('form');
         } else {
-            echo 'File has an error and can not be re-sorted';
+            echo get_string('filereadingerror', 'tool_mhacker');
         }
         echo "</div>";
 
         $chunks = self::parse_stringfile($filepath);
 
-        $string = array();
-        include($filepath);
-        $table = new html_table();
-        $table->attributes['class'] .= ' stringslist';
-        $table->colclasses = array('stringkey', 'stringvalue', '');
+        $table = new flexible_table('tool_mhacker_stringtable');
+        $table->define_baseurl(new moodle_url('/admin/tool/mhacker/stringhacker.php', array('plugin' => $pluginname)));
+        $table->define_columns(array('stringkey', 'stringvalue', 'source'));
+        $table->define_headers(array(get_string('stringkey', 'tool_mhacker'),
+            get_string('stringvalue', 'tool_mhacker'),
+            get_string('stringsource', 'tool_mhacker')));
+        $table->set_attribute('class', 'generaltable stringslist');
+        $table->collapsible(true);
+
+        $table->setup();
         $lastkey = null;
         foreach ($chunks as $chunk) {
-            $table->data[] = $row = new html_table_row(array($chunk[2], $chunk[3], '<pre>'.$chunk[0].'</pre>'));
+            $row = array($chunk[2], $chunk[3], '<pre>'.$chunk[0].'</pre>');
             $key = $chunk[2];
+            $class = '';
             if ($key) {
                 if (strcmp($key, $lastkey) < 0) {
-                    $row->attributes['class'] = 'sorterror';
+                    $class = 'sorterror';
                 }
                 if ($key !== $chunk[1]) {
-                    $row->attributes['class'] = 'keymismatch';
+                    $class = 'keymismatch';
                 }
                 $lastkey = $key;
             }
+            $table->add_data($row, $class);
         }
-        echo html_writer::table($table);
+        $table->finish_output();
     }
 }

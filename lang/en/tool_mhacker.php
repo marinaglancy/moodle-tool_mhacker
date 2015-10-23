@@ -24,5 +24,15 @@
 
 $string['dbhacker'] = 'DB hacker';
 $string['error_notdebugging'] = 'Not available on this server because debugging is not set to DEVELOPER';
+$string['erroraddingstring'] = 'Error, string can not be added';
+$string['errorstringsorting'] = 'Error, file can not be re-sorted';
+$string['filenotwritable'] = 'File is not writable<br>chmod 666 {$a}';
+$string['filereadingerror'] = 'File has an error and can not be re-sorted';
 $string['pluginname'] = 'Moodle hacker';
+$string['resortstrings'] = 'Re-sort strings in the file';
+$string['stringadded'] = 'String \'{$a->key}\' has been added to the language file, to use call:<br><br><b>{$a->example}</b><br><br>{$a->value}';
 $string['stringhacker'] = 'Strings hacker';
+$string['stringkey'] = 'Key';
+$string['stringsource'] = 'Source';
+$string['stringssorted'] = 'Language file has been re-sorted';
+$string['stringvalue'] = 'Value';
