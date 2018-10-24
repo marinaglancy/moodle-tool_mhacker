@@ -29,6 +29,7 @@ $string['errorstringsorting'] = 'Error, file can not be re-sorted';
 $string['filenotwritable'] = 'File is not writable<br>chmod 666 {$a}';
 $string['filereadingerror'] = 'File has an error and can not be re-sorted';
 $string['pluginname'] = 'Moodle hacker';
+$string['privacy:metadata'] = 'The Moodle hacker plugin does not store any personal data.';
 $string['resortstrings'] = 'Re-sort strings in the file';
 $string['stringadded'] = 'String \'{$a->key}\' has been added to the language file, to use call:<br><br><b>{$a->example}</b><br><br>{$a->value}';
 $string['stringhacker'] = 'Strings hacker';

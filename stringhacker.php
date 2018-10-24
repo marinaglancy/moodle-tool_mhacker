@@ -55,7 +55,7 @@ if ($pluginname && $action === 'sort') {
 }
 if ($pluginname && $action === 'addstring') {
     require_sesskey();
-    $stringkey = trim(required_param('stringkey', PARAM_ALPHANUMEXT));
+    $stringkey = trim(required_param('stringkey', PARAM_RAW));
     $result = tool_mhacker_helper::sort_stringfile($pluginname, true,
         $stringkey, required_param('stringvalue', PARAM_RAW));
     if ($result) {
@@ -68,7 +68,7 @@ if ($pluginname && $action === 'addstring') {
 echo $OUTPUT->header();
 echo $OUTPUT->heading($title);
 
-if ($pluginname && ($stringkey = optional_param('added', null, PARAM_ALPHANUMEXT)) &&
+if ($pluginname && ($stringkey = optional_param('added', null, PARAM_RAW_TRIMMED)) &&
         get_string_manager()->string_exists($stringkey, $pluginname)) {
 
     $stringvalue = get_string($stringkey, $pluginname);
