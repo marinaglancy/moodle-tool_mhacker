@@ -105,19 +105,19 @@ class tool_mhacker_tc_file {
         }
         $this->checkpoints = [];
 
+        $tokens = &$this->get_tokens();
         $scanfile = false;
         if ($aftertoken = $this->find_config_php_inclusion()) {
-            //echo $this->filepath . ' includes config.php at '.$aftertoken."<br>";
+            //echo $this->path . ' includes config.php at '.$aftertoken.", last token = {$tokens[$aftertoken][1]}<br>";
             $scanfile = true;
         } else if ($aftertoken = $this->find_defined_moodle_internal()) {
-            //echo $this->filepath . ' defines moodle_internal at '.$aftertoken."<br>";
+            //echo $this->path . ' defines moodle_internal at '.$aftertoken.", last token = {$tokens[$aftertoken][1]}<br>";
         } else {
             \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
             return;
         }
         //\core\notification::add('!!Adding checkpoints to the file '.$this->path, \core\output\notification::NOTIFY_INFO);
-        $filecp = ++$cp;
-        $this->checkpoints[$aftertoken][] = "$filecp, []";
+        $filecp = $this->new_checkpoint($aftertoken, "", $cp);
         foreach ($this->get_functions() as $function) {
             $this->add_check_points_to_function($function, $filecp, $cp);
         }
@@ -127,12 +127,15 @@ class tool_mhacker_tc_file {
         }
 
         $s = '';
-        $tokens = &$this->get_tokens();
         for ($tid = 0; $tid < $this->tokenscount; $tid++) {
             $s .= $tokens[$tid][1];
             if (array_key_exists($tid, $this->checkpoints)) {
                 foreach ($this->checkpoints[$tid] as $ins) {
-                    $s .= "\n\\tool_mhacker_test_coverage::cp($cprun, $ins);";
+                    if (substr($tokens[$tid][1], -1) === "\n") {
+                        $s .= "\\tool_mhacker_test_coverage::cp($cprun, $ins);\n";
+                    } else {
+                        $s .= "\n\\tool_mhacker_test_coverage::cp($cprun, $ins);";
+                    }
                 }
             }
         }
@@ -148,18 +151,41 @@ class tool_mhacker_tc_file {
             // No need to check.
             return;
         }
-        $functioncp = ++$cp;
-        $this->checkpoints[$function->tagpair[0]][] = "$functioncp, [{$prereq}]";
+        $functioncp = $this->new_checkpoint($function->tagpair[0], $prereq, $cp);
         $this->add_check_points_to_block($function->tagpair[0] + 1, $function->tagpair[1] - 1,
             "{$prereq}, $functioncp", $cp);
+    }
+
+    protected function new_checkpoint($aftertoken, $prereq, &$cp) {
+        ++$cp;
+        $tokens = &$this->get_tokens();
+        //if ($tokens[$aftertoken + 1][0] != T_WHITESPACE || strpos($tokens[$aftertoken + 1][1], "\n") === false) {
+        if (!$this->is_whitespace_token($aftertoken + 1) || !$this->is_multiline_token($aftertoken + 1)) {
+            // There is no newline after this token. Hopefully a comment.
+            //print_object($tokens[$aftertoken+1]);
+            //$nonspace = $this->next_nonspace_token($aftertoken);
+            //print_object($tokens[$aftertoken + 2]);
+
+            if ($tokens[$aftertoken + 2][0] == T_COMMENT &&
+                    $this->is_multiline_token($aftertoken + 2)) {
+                \core\notification::add("Skipping inline comment in file {$this->path} ", \core\output\notification::NOTIFY_WARNING);
+                $aftertoken = $aftertoken + 2;
+            } else {
+                \core\notification::add("Error in file {$this->path} ");
+                print_object($tokens[$aftertoken + 3]);
+            }
+
+        }
+
+        $this->checkpoints[$aftertoken][] = "$cp, [{$prereq}]";
+        return $cp;
     }
 
     protected function add_check_points_to_block($tid1, $tid2, $prereq, &$cp) {
         $tokens = &$this->get_tokens();
         for ($tid = $tid1; $tid <= $tid2; $tid++) {
             if ($tokens[$tid][1] === '{') {
-                ++$cp;
-                $this->checkpoints[$tid][] = "{$cp}, [{$prereq}]";
+                $this->new_checkpoint($tid, $prereq, $cp);
             }
         }
     }
