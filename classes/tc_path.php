@@ -14,31 +14,26 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class tool_mhacker_tc_path {
-    protected $path = null;
-    protected $ignorepaths = null;
+    protected $tc;
+    protected $path;
     protected $file = null;
     protected $subpaths = null;
     protected $treebuilt = false;
     protected $rootpath = true;
 
-    public function __construct($path, $ignorepaths) {
-        $path = trim($path);
-        // If the path is already one existing full path
-        // accept it, else assume it's a relative one.
-        if (!file_exists($path) and substr($path, 0, 1) == '/') {
-            $path = substr($path, 1);
-        }
+    /**
+     * tool_mhacker_tc_path constructor.
+     *
+     * @param tool_mhacker_test_coverage $tc
+     * @param string $path
+     */
+    public function __construct(tool_mhacker_test_coverage $tc, string $path = '') {
+        $this->tc = $tc;
         $this->path = $path;
-        $this->ignorepaths = $ignorepaths;
     }
 
-    public function get_fullpath() {
-        global $CFG;
-        // It's already one full path.
-        if (file_exists($this->path)) {
-            return $this->path;
-        }
-        return $CFG->dirroot. '/'. $this->path;
+    public function get_full_path() {
+        return $this->tc->get_full_path() . $this->path;
     }
 
     public function build_tree() {
@@ -46,14 +41,14 @@ class tool_mhacker_tc_path {
             // Prevent from second validation.
             return;
         }
-        if (is_file($this->get_fullpath())) {
-            $this->file = new tool_mhacker_tc_file($this->get_fullpath());
-        } else if (is_dir($this->get_fullpath())) {
+        if (is_file($this->get_full_path())) {
+            $this->file = new tool_mhacker_tc_file($this->tc, $this->path);
+        } else if (is_dir($this->get_full_path())) {
             $this->subpaths = array();
-            if ($dh = opendir($this->get_fullpath())) {
+            if ($dh = opendir($this->get_full_path())) {
                 while (($file = readdir($dh)) !== false) {
-                    if ($file != '.' && $file != '..' && $file != '.git'  && $file != '.hg' && !$this->is_ignored($file)) {
-                        $subpath = new tool_mhacker_tc_path($this->path . '/'. $file, $this->ignorepaths);
+                    if ($file != '.' && $file != '..' && !$this->tc->is_file_ignored($this->path . '/' . $file)) {
+                        $subpath = new tool_mhacker_tc_path($this->tc, $this->path . '/' . $file);
                         $subpath->set_rootpath(false);
                         $this->subpaths[] = $subpath;
                     }
@@ -68,8 +63,8 @@ class tool_mhacker_tc_path {
         $writable = true;
         $this->build_tree();
         if ($this->is_file()) {
-            if (!\is_writeable($this->get_file()->get_filepath())) {
-                \core\notification::add('File '.$this->get_file()->get_filepath().' is not writable');
+            if (!\is_writeable($this->get_file()->get_full_path())) {
+                \core\notification::add('File '.$this->get_file()->get_full_path().' is not writable');
                 $writable = false;
             }
         }
@@ -83,27 +78,12 @@ class tool_mhacker_tc_path {
         return $writable;
     }
 
-    protected function is_ignored($file) {
-        $filepath = $this->path. '/'. $file;
-        foreach ($this->ignorepaths as $ignorepath) {
-            $ignorepath = rtrim($ignorepath, '/');
-            if ($filepath == $ignorepath || substr($filepath, 0, strlen($ignorepath) + 1) == $ignorepath . '/') {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public function is_file() {
         return $this->file !== null;
     }
 
     public function is_dir() {
         return $this->subpaths !== null;
-    }
-
-    public function get_path() {
-        return $this->path;
     }
 
     /**
@@ -139,7 +119,7 @@ class tool_mhacker_tc_path {
         }
     }
 
-    public function remove_check_points($list = null) {
+    public function remove_check_points(array $list = null) {
         $this->build_tree();
         if ($this->is_file()) {
             $this->get_file()->remove_check_points($list);
@@ -148,5 +128,18 @@ class tool_mhacker_tc_path {
                 $subpath->remove_check_points($list);
             }
         }
+    }
+
+    public function replace_check_points_with_todos() : array {
+        $result = [];
+        $this->build_tree();
+        if ($this->is_file()) {
+            $result = array_merge($result, $this->get_file()->replace_check_points_with_todos());
+        } else if ($this->is_dir()) {
+            foreach ($this->get_subpaths() as $subpath) {
+                $result = array_merge($result, $subpath->replace_check_points_with_todos());
+            }
+        }
+        return $result;
     }
 }

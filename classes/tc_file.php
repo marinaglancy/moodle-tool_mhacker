@@ -14,8 +14,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class tool_mhacker_tc_file {
-    protected $filepath = null;
-    protected $needsvalidation = null;
+    protected $tc;
+    protected $path;
     protected $errors = null;
     protected $tokens = null;
     protected $tokenscount = 0;
@@ -28,12 +28,14 @@ class tool_mhacker_tc_file {
     protected $constants = null;
 
     /**
-     * Creates an object from path to the file
+     * tool_mhacker_tc_file constructor.
      *
-     * @param string $filepath
+     * @param tool_mhacker_test_coverage $tc
+     * @param string $path
      */
-    public function __construct($filepath) {
-        $this->filepath = $filepath;
+    public function __construct(tool_mhacker_test_coverage $tc, string $path) {
+        $this->tc = $tc;
+        $this->path = $path;
     }
 
     /**
@@ -51,64 +53,54 @@ class tool_mhacker_tc_file {
         $this->constants = null;
     }
 
-    /**
-     * Returns true if this file is inside specified directory
-     *
-     * @param string $dirpath
-     * @return bool
-     */
-    public function is_in_dir($dirpath) {
-        if (substr($dirpath, -1) != '/') {
-            $dirpath .= '/';
-        }
-        return substr($this->filepath, 0, strlen($dirpath)) == $dirpath;
-    }
-
-    /**
-     * Retuns true if the file needs validation (is PHP file)
-     *
-     * @return bool
-     */
-    public function needs_validation() {
-        if ($this->needsvalidation === null) {
-            $this->needsvalidation = true;
-            $pathinfo = pathinfo($this->filepath);
-            if (empty($pathinfo['extension']) || ($pathinfo['extension'] != 'php' && $pathinfo['extension'] != 'inc')) {
-                $this->needsvalidation = false;
-            }
-            if ($pathinfo['filename'] === 'version.php' || $pathinfo['filename'] === 'upgrade.php' ||
-                    $pathinfo['filename'] === 'version.php') {
-                $this->needsvalidation = false;
-            }
-        }
-        return $this->needsvalidation;
-    }
-
-    protected function function_needs_test_coverage($function) {
-        if (preg_match('|/classes/event/|', $this->filepath) &&
-                in_array($function->name, ['get_objectid_mapping', 'get_other_mapping'])) {
-            return false;
-        }
-        return true;
+    public function get_full_path() {
+        return $this->tc->get_full_path() . $this->path;
     }
 
     public function remove_check_points($list = null) {
-        if (!$this->needs_validation()) {
+        if ($this->tc->is_file_ignored($this->path)) {
+            // TODO should not even be added to the tree.
             return;
         }
-        $contents = file_get_contents($this->get_filepath());
+        $contents = file_get_contents($this->get_full_path());
         if ($list) {
             $cpregex = '('. join('|', $list) . ')';
         } else {
             $cpregex = '[\d]+';
         }
-        $contents = preg_replace('@\\n *\\\\tool_mhacker_test_coverage::cp\\([\d]+, ' . $cpregex . ', .*?\\);@', '', $contents);
-        file_put_contents($this->get_filepath(), $contents);
+        $contents = preg_replace('@\\n *\\\\tool_mhacker_test_coverage::cp\\([\d]+, ' . $cpregex .
+            ', \\[.*?\\]\\);@', '', $contents);
+        if (!$list) {
+            $contents = preg_replace('/\\n *' . preg_quote($this->tc->todo_comment(), '/') . '\\n/', "\n", $contents);
+        }
+        file_put_contents($this->get_full_path(), $contents);
+    }
+
+    public function replace_check_points_with_todos() : array {
+        $contents = file_get_contents($this->get_full_path());
+        $replaced = [];
+        if (preg_match_all('@\\n *\\\\tool_mhacker_test_coverage::cp\\([\d]+, ([\d]+), \\[(.*?)\\]\\);\n@', $contents, $matches)) {
+            $replaced = [];
+            foreach ($matches[0] as $idx => $fullmatch) {
+                $cp = $matches[1][$idx];
+                $prereq = preg_split('/, /', $matches[2][$idx], -1, PREG_SPLIT_NO_EMPTY);
+                if (!array_intersect($replaced, $prereq)) {
+                    $replacewith = "\n" . $this->tc->todo_comment() . "\n";
+                    $replaced[] = $cp;
+                } else {
+                    $replacewith = "\n";
+                }
+                $contents = str_replace($fullmatch, $replacewith, $contents);
+            }
+            file_put_contents($this->get_full_path(), $contents);
+        }
+        return $replaced ? ["There are " . count($replaced) . " TODOs in file <b>{$this->path}</b>"] : [];
     }
 
     protected $checkpoints = [];
     public function add_check_points($cprun, &$cp) {
-        if (!$this->needs_validation()) {
+        if ($this->tc->is_file_ignored($this->path)) {
+            // TODO should not even be added to the tree.
             return;
         }
         $this->checkpoints = [];
@@ -120,9 +112,10 @@ class tool_mhacker_tc_file {
         } else if ($aftertoken = $this->find_defined_moodle_internal()) {
             //echo $this->filepath . ' defines moodle_internal at '.$aftertoken."<br>";
         } else {
-            \core\notification::add('Skipping file '.$this->filepath);
+            \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
             return;
         }
+        //\core\notification::add('!!Adding checkpoints to the file '.$this->path, \core\output\notification::NOTIFY_INFO);
         $filecp = ++$cp;
         $this->checkpoints[$aftertoken][] = "$filecp, []";
         foreach ($this->get_functions() as $function) {
@@ -143,15 +136,15 @@ class tool_mhacker_tc_file {
                 }
             }
         }
-        file_put_contents($this->filepath, $s);
+        file_put_contents($this->get_full_path(), $s);
     }
 
-    protected function add_check_points_to_function($function, $prereq, &$cp) {
+    protected function add_check_points_to_function(stdClass $function, $prereq, &$cp) {
         if (!$function->tagpair) {
             // Abstract function.
             return;
         }
-        if (!$this->function_needs_test_coverage($function)) {
+        if ($this->tc->is_function_ignored($this->path, $function)) {
             // No need to check.
             return;
         }
@@ -206,15 +199,6 @@ class tool_mhacker_tc_file {
     }
 
     /**
-     * Return the filepath of the file.
-     *
-     * @return string
-     */
-    public function get_filepath() {
-        return $this->filepath;
-    }
-
-    /**
      * Returns a file contents converted to array of tokens.
      *
      * Each token is an array with two elements: code of token and text
@@ -224,7 +208,7 @@ class tool_mhacker_tc_file {
      */
     public function &get_tokens() {
         if ($this->tokens === null) {
-            $source = file_get_contents($this->filepath);
+            $source = file_get_contents($this->get_full_path());
             $this->tokens = token_get_all($source);
             $this->tokenscount = count($this->tokens);
             $inquotes = -1;
@@ -347,9 +331,6 @@ class tool_mhacker_tc_file {
                         $function->arguments[] = array($type, $variable);
                     }
                     $function->boundaries = $this->find_object_boundaries($function);
-                    if ($function->tagpair) {
-
-                    }
                     $this->functions[] = $function;
                 }
             }
@@ -439,7 +420,7 @@ class tool_mhacker_tc_file {
      * $variable->fullname : name of the variable with class name (i.e. classname::$varname)
      * $variable->boundaries : array with ids of first and last token for this constant
      *
-     * @return array
+     * @return array|false
      */
     public function find_defined_moodle_internal() {
         $this->get_tokens();

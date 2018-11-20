@@ -368,18 +368,38 @@ class tool_mhacker_helper {
      * @param string $pluginname
      */
     public static function show_testcoverage_file($pluginname) {
+        global $CFG;
         tool_mhacker_test_coverage::check_env(true);
 
         $filepath = self::find_component_path($pluginname);
-        echo "pluginname = $pluginname , path = $filepath<br>";
+        //echo "pluginname = $pluginname , path = $filepath<br>";
 
         $url = new moodle_url('/admin/tool/mhacker/testcoverage.php', ['plugin' => $pluginname, 'sesskey' => sesskey()]);
         echo <<<EOF
-<ul>
-    <li><a href="{$url}&amp;action=removeall">Remove all checkpoints</a></li>
-    <li><a href="{$url}&amp;action=addnew">Add checkpoints to all files</a></li>
-    <li><a href="{$url}&amp;action=analyse">Analyse checkpoints</a></li>
-</ul>
+        <h3>How to calculate test coverage for plugin {$pluginname}:</h3>
+<ol>
+    <li>Make sure your plugin working directory is clean:
+<pre>cd {$CFG->dirroot}/{$filepath}
+git status</pre>
+    </li>
+    <li>
+        <a href="{$url}&amp;action=addnew">Add checkpoints to all files</a><br/>&nbsp;
+    </li>
+    <li>
+        Run all automated tests:
+<pre>cd {$CFG->dirroot}
+./vendor/bin/phpunit --testsuite {$pluginname}_testsuite
+./vendor/bin/phpunit admin/tool/dataprivacy/tests/metadata_registry_test.php
+./vendor/bin/phpunit lib/tests/externallib_test.php
+./vendor/bin/phpunit privacy/tests/provider_test.php
+php admin/tool/behat/cli/run.php --tags=@{$pluginname}
+</pre>
+    </li>
+    <li><a href="{$url}&amp;action=analyse">Remove checkpoints covered by tests</a></li>
+    <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a></li>
+</ol>
+
+<p>If you have too many results you can also <a href="{$url}&amp;action=removeall">Remove all checkpoints</a> in bulk</p>
 EOF;
 
         if ($action = optional_param('action', null, PARAM_ALPHA)) {
@@ -397,6 +417,11 @@ EOF;
             if ($action === 'analyse') {
                 $tc = new tool_mhacker_test_coverage($filepath);
                 $tc->analyze();
+                echo "<p>...Analysis finished ...</p>";
+            }
+            if ($action === 'todos') {
+                $tc = new tool_mhacker_test_coverage($filepath);
+                $tc->todos();
                 echo "<p>...Analysis finished ...</p>";
             }
         }
