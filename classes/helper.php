@@ -39,7 +39,9 @@ class tool_mhacker_helper {
         $tabs[] = new tabobject('dbhacker', new moodle_url('/admin/tool/mhacker/dbhacker.php'),
                 get_string('dbhacker', 'tool_mhacker'));
         $tabs[] = new tabobject('stringhacker', new moodle_url('/admin/tool/mhacker/stringhacker.php'),
-                get_string('stringhacker', 'tool_mhacker'));
+            get_string('stringhacker', 'tool_mhacker'));
+        $tabs[] = new tabobject('testcoverage', new moodle_url('/admin/tool/mhacker/testcoverage.php'),
+            get_string('testcoverage', 'tool_mhacker'));
         echo $OUTPUT->tabtree($tabs, $currenttab);
     }
 
@@ -304,5 +306,101 @@ class tool_mhacker_helper {
             $table->add_data($row, $class);
         }
         $table->finish_output();
+    }
+
+    /**
+     * Displays the list of plugins and core components with string files
+     */
+    public static function show_testcoverage_list() {
+        global $CFG;
+        tool_mhacker_test_coverage::check_env(true);
+
+        $plugintypes = array('core' => 'core') + core_component::get_plugin_types();
+        echo '<ul class="pluginslist">';
+        foreach ($plugintypes as $plugintype => $directory) {
+            echo "<li>".$plugintype."</li>";
+            if ($plugintype === 'core') {
+                $plugins = core_component::get_core_subsystems() + array('moodle' => 'moodle');
+            } else {
+                $plugins = core_component::get_plugin_list($plugintype);
+            }
+            ksort($plugins);
+            echo '<ul class="testcoveragefiles">';
+            foreach ($plugins as $plugin => $plugindir) {
+                $name = ($plugintype === 'core') ? $plugin : ($plugintype."_".$plugin);
+                $filename = ($plugintype === 'mod' || $plugintype === 'core') ? $plugin : ($plugintype."_".$plugin);
+
+                $plugindir = ($plugintype !== 'core') ? $plugindir : $CFG->dirroot;
+                if (file_exists($plugindir . '/lang/en/'. $filename.'.php')) {
+                    $url = new moodle_url('/admin/tool/mhacker/testcoverage.php', array('plugin' => $name));
+                    echo "<li>".html_writer::link($url, $name)."</li>";
+                }
+            }
+            echo "</ul>";
+        }
+        echo '</ul>';
+    }
+
+    /**
+     * Given plugin name finds the string file path
+     *
+     * @param string $pluginname
+     * @return string
+     */
+    protected static function find_component_path($pluginname) {
+        global $CFG;
+        $matches = array();
+        if (preg_match('/^(\w+)_(.*)$/', $pluginname, $matches)) {
+            $plugins = core_component::get_plugin_list($matches[1]);
+            if (!array_key_exists($matches[2], $plugins)) {
+                return false;
+            }
+            return str_replace($CFG->dirroot . '/', '', $plugins[$matches[2]]);
+        } else {
+            // TODO core component paths.
+            return false;
+        }
+    }
+
+    /**
+     * Displays the test coverage for a file
+     *
+     * @param string $pluginname
+     */
+    public static function show_testcoverage_file($pluginname) {
+        tool_mhacker_test_coverage::check_env(true);
+
+        $filepath = self::find_component_path($pluginname);
+        echo "pluginname = $pluginname , path = $filepath<br>";
+
+        $url = new moodle_url('/admin/tool/mhacker/testcoverage.php', ['plugin' => $pluginname, 'sesskey' => sesskey()]);
+        echo <<<EOF
+<ul>
+    <li><a href="{$url}&amp;action=removeall">Remove all checkpoints</a></li>
+    <li><a href="{$url}&amp;action=addnew">Add checkpoints to all files</a></li>
+    <li><a href="{$url}&amp;action=analyse">Analyse checkpoints</a></li>
+</ul>
+EOF;
+
+        if ($action = optional_param('action', null, PARAM_ALPHA)) {
+            require_sesskey();
+            if ($action === 'removeall') {
+                $tc = new tool_mhacker_test_coverage($filepath);
+                $tc->remove_all_check_points();
+                echo "<p>....Removed....</p>";
+            }
+            if ($action === 'addnew') {
+                $tc = new tool_mhacker_test_coverage($filepath);
+                $cprun = $tc->add_check_points();
+                echo "<p>...Added checkpoints for the run id $cprun ...</p>";
+            }
+            if ($action === 'analyse') {
+                $tc = new tool_mhacker_test_coverage($filepath);
+                $tc->analyze();
+                echo "<p>...Analysis finished ...</p>";
+            }
+        }
+
+
     }
 }

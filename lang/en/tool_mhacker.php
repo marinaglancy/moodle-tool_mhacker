@@ -37,3 +37,4 @@ $string['stringkey'] = 'Key';
 $string['stringsource'] = 'Source';
 $string['stringssorted'] = 'Language file has been re-sorted';
 $string['stringvalue'] = 'Value';
+$string['testcoverage'] = 'Test coverage';
