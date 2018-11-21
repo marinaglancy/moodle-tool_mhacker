@@ -108,13 +108,13 @@ class tool_mhacker_tc_path {
         return $this->rootpath;
     }
 
-    public function add_check_points($cprun) {
+    public function add_check_points() {
         $this->build_tree();
         if ($this->is_file()) {
-            $this->get_file()->add_check_points($cprun);
+            $this->get_file()->add_check_points();
         } else if ($this->is_dir()) {
             foreach ($this->get_subpaths() as $subpath) {
-                $subpath->add_check_points($cprun);
+                $subpath->add_check_points();
             }
         }
     }

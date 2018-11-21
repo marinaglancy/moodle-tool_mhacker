@@ -51,10 +51,10 @@ class tool_mhacker_test_coverage {
     public function add_check_points() {
         $path = new tool_mhacker_tc_path($this);
         if (!$path->is_writeable()) {
-            return false;
+            return;
         }
         $this->cp = 0;
-        $path->add_check_points(0);
+        $path->add_check_points();
     }
 
     public function remove_all_check_points() {
@@ -74,7 +74,7 @@ class tool_mhacker_test_coverage {
         echo "<pre>".join("\n", $list)."</pre>";
     }
 
-    public static function cp($cprun, $cp, $prereq = []) {
+    public static function cp($cp, $prereq = []) {
         if ((defined('PHPUNIT_TEST') && PHPUNIT_TEST) || defined('BEHAT_SITE_RUNNING')) {
             $backtrace = debug_backtrace();
             tool_mhacker_tc_file::remove_check_point_from_path($backtrace[0]['file'], [$cp]);

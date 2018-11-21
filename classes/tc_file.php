@@ -83,7 +83,7 @@ class tool_mhacker_tc_file {
         } else {
             $cpregex = '[\d]+';
         }
-        $contents = preg_replace('@\\n *\\\\tool_mhacker_test_coverage::cp\\([\d]+, ' . $cpregex .
+        $contents = preg_replace('@\\n *\\\\tool_mhacker_test_coverage::cp\\(' . $cpregex .
             ', \\[.*?\\]\\);@', '', $contents);
         if ($todocomment !== null) {
             $contents = preg_replace('/\\n *' . preg_quote($todocomment, '/') . '\\n/', "\n", $contents);
@@ -94,7 +94,7 @@ class tool_mhacker_tc_file {
     public function replace_check_points_with_todos() : array {
         $contents = file_get_contents($this->get_full_path());
         $replaced = [];
-        if (preg_match_all('@\\n *\\\\tool_mhacker_test_coverage::cp\\([\d]+, ([\d]+), \\[(.*?)\\]\\);\n@', $contents, $matches)) {
+        if (preg_match_all('@\\n *\\\\tool_mhacker_test_coverage::cp\\(([\d]+), \\[(.*?)\\]\\);\n@', $contents, $matches)) {
             $replaced = [];
             foreach ($matches[0] as $idx => $fullmatch) {
                 $cp = $matches[1][$idx];
@@ -113,7 +113,7 @@ class tool_mhacker_tc_file {
     }
 
     protected $checkpoints = [];
-    public function add_check_points($cprun) {
+    public function add_check_points() {
         if ($this->tc->is_file_ignored($this->path)) {
             // TODO should not even be added to the tree.
             return;
@@ -147,9 +147,9 @@ class tool_mhacker_tc_file {
             if (array_key_exists($tid, $this->checkpoints)) {
                 foreach ($this->checkpoints[$tid] as $ins) {
                     if (substr($tokens[$tid][1], -1) === "\n") {
-                        $s .= "\\tool_mhacker_test_coverage::cp($cprun, $ins);\n";
+                        $s .= "\\tool_mhacker_test_coverage::cp($ins);\n";
                     } else {
-                        $s .= "\n\\tool_mhacker_test_coverage::cp($cprun, $ins);";
+                        $s .= "\n\\tool_mhacker_test_coverage::cp($ins);";
                     }
                 }
             }
