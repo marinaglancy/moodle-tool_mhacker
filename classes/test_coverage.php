@@ -49,17 +49,12 @@ class tool_mhacker_test_coverage {
     }
 
     public function add_check_points() {
-        global $DB;
-        $cprun = $DB->insert_record('tool_mhacker_run',
-            (object)['timecreated' => time(), 'path' => $this->path, 'maxid' => 0]);
         $path = new tool_mhacker_tc_path($this);
         if (!$path->is_writeable()) {
             return false;
         }
         $this->cp = 0;
-        $path->add_check_points($cprun);
-        $DB->update_record('tool_mhacker_run', ['id' => $cprun, 'maxid' => $this->cp]);
-        return $cprun;
+        $path->add_check_points(0);
     }
 
     public function remove_all_check_points() {
@@ -71,7 +66,6 @@ class tool_mhacker_test_coverage {
     }
 
     public function todos() {
-        global $DB;
         $path = new tool_mhacker_tc_path($this);
         if (!$path->is_writeable()) {
             return;

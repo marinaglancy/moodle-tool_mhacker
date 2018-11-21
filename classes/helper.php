@@ -439,6 +439,8 @@ git status</pre>
     <li>
         Run all automated tests:
 <pre>cd {$CFG->dirroot}
+php admin/tool/phpunit/cli/init.php
+php admin/tool/behat/cli/init.php
 ./vendor/bin/phpunit --testsuite {$pluginname}_testsuite
 ./vendor/bin/phpunit admin/tool/dataprivacy/tests/metadata_registry_test.php
 ./vendor/bin/phpunit lib/tests/externallib_test.php
@@ -462,8 +464,8 @@ EOF;
             }
             if ($action === 'addnew') {
                 $tc = new tool_mhacker_test_coverage($filepath);
-                $cprun = $tc->add_check_points();
-                echo "<p>...Added checkpoints for the run id $cprun ...</p>";
+                $tc->add_check_points();
+                echo "<p>...Added checkpoints ...</p>";
             }
             if ($action === 'todos') {
                 $tc = new tool_mhacker_test_coverage($filepath);
