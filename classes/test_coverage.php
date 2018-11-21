@@ -39,32 +39,8 @@ class tool_mhacker_test_coverage {
         $this->path = $path;
     }
 
-    protected static function get_log_file() {
-        // TODO find a way not to hardcode it.
-        return '/tmp/testcoverage_tenant';
-    }
-
     public function todo_comment() {
         return '// TODO Not covered by automated tests.';
-    }
-
-    public static function check_env($warn = false) {
-        $file = self::get_log_file();
-        if (!file_exists($file)) {
-            $dir = dirname($file);
-            if (file_exists($dir) && is_dir($dir) && is_writable($dir)) {
-                return true;
-            }
-            touch($file);
-        }
-        $fileperm = substr(sprintf('%o', fileperms($file)), -4);
-        if (($fileperm === '0666') || chmod($file, 0666)) {
-            return true;
-        }
-        if ($warn) {
-            \core\notification::add("Make sure that log file $file exists and is has 666 write mode");
-        }
-        return false;
     }
 
     protected $cp = 0;
@@ -94,27 +70,6 @@ class tool_mhacker_test_coverage {
         $path->remove_check_points();
     }
 
-    public function analyze() {
-        global $DB;
-        $path = new tool_mhacker_tc_path($this);
-        if (!$path->is_writeable()) {
-            return;
-        }
-
-        $cprun = $DB->get_field_sql("SELECT max(id) FROM {tool_mhacker_run}");
-        if (!$cprun) {
-            return;
-        }
-        self::file_to_db($cprun);
-        $list = $DB->get_fieldset_sql("SELECT DISTINCT cp FROM {tool_mhacker_log} WHERE runid = ? ORDER BY cp", [$cprun]);
-        echo "<p>The following checkpoints were covered by automated tests and are now removed: ".join(', ', $list).'</p>';
-        $path->remove_check_points($list);
-
-        $maxid = $DB->get_field('tool_mhacker_run', 'maxid', ['id' => $cprun]);
-        $remaining = array_diff(array_keys(array_fill(1, $maxid, 1)), $list);
-        echo "<p>The following checkpoints are remaining: ".join(', ', $remaining).'</p>';
-    }
-
     public function todos() {
         global $DB;
         $path = new tool_mhacker_tc_path($this);
@@ -127,24 +82,8 @@ class tool_mhacker_test_coverage {
 
     public static function cp($cprun, $cp, $prereq = []) {
         if ((defined('PHPUNIT_TEST') && PHPUNIT_TEST) || defined('BEHAT_SITE_RUNNING')) {
-            if (self::check_env()) {
-                file_put_contents(self::get_log_file(), time().",$cprun,$cp\n", FILE_APPEND);
-            }
-        }
-    }
-
-    protected static function file_to_db($cprun) {
-        global $DB;
-        $handle = @fopen(self::get_log_file(), "r");
-        if ($handle) {
-            while (($line = fgets($handle)) !== false) {
-                $x = preg_split('/,/', trim($line));
-                if ((int)$x[1] == $cprun) {
-                    $DB->insert_record('tool_mhacker_log', (object)['runid' => $cprun, 'cp' => $x[2]]);
-                }
-            }
-
-            fclose($handle);
+            $backtrace = debug_backtrace();
+            tool_mhacker_tc_file::remove_check_point_from_path($backtrace[0]['file'], [$cp]);
         }
     }
 

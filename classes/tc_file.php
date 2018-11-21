@@ -62,7 +62,22 @@ class tool_mhacker_tc_file {
             // TODO should not even be added to the tree.
             return;
         }
-        $contents = file_get_contents($this->get_full_path());
+        self::remove_check_point_from_path($this->get_full_path(), $list, $list ? null : $this->tc->todo_comment());
+    }
+
+    /**
+     * Removes the checkpoint(s) calls and, optionally, to-do comments
+     *
+     * @param string $fullpath
+     * @param array $list
+     * @param string $todocomment
+     */
+    public static function remove_check_point_from_path($fullpath, $list, $todocomment = null) {
+        if (!file_exists($fullpath) || !is_writable($fullpath)) {
+            // Don't even bother.
+            return;
+        }
+        $contents = file_get_contents($fullpath);
         if ($list) {
             $cpregex = '('. join('|', $list) . ')';
         } else {
@@ -70,10 +85,10 @@ class tool_mhacker_tc_file {
         }
         $contents = preg_replace('@\\n *\\\\tool_mhacker_test_coverage::cp\\([\d]+, ' . $cpregex .
             ', \\[.*?\\]\\);@', '', $contents);
-        if (!$list) {
-            $contents = preg_replace('/\\n *' . preg_quote($this->tc->todo_comment(), '/') . '\\n/', "\n", $contents);
+        if ($todocomment !== null) {
+            $contents = preg_replace('/\\n *' . preg_quote($todocomment, '/') . '\\n/', "\n", $contents);
         }
-        file_put_contents($this->get_full_path(), $contents);
+        file_put_contents($fullpath, $contents);
     }
 
     public function replace_check_points_with_todos() : array {

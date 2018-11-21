@@ -370,7 +370,6 @@ class tool_mhacker_helper {
      */
     public static function show_testcoverage_list() {
         global $CFG;
-        tool_mhacker_test_coverage::check_env(true);
         $baseurl = new moodle_url('/admin/tool/mhacker/testcoverage.php');
         self::display_selector($baseurl);
 
@@ -422,7 +421,6 @@ class tool_mhacker_helper {
      */
     public static function show_testcoverage_file($pluginname) {
         global $CFG;
-        tool_mhacker_test_coverage::check_env(true);
 
         $filepath = self::find_component_path($pluginname);
         //echo "pluginname = $pluginname , path = $filepath<br>";
@@ -448,8 +446,7 @@ git status</pre>
 php admin/tool/behat/cli/run.php --tags=@{$pluginname}
 </pre>
     </li>
-    <li><a href="{$url}&amp;action=analyse">Remove checkpoints covered by tests</a><br/>&nbsp;</li>
-    <li>Now you can use "git diff" to see all remaining checkpoint. Write more tests, execute them, repeat #4 as many times as you want.<br/>&nbsp;</li>
+    <li>Now you can use "git diff" to see all remaining checkpoint. Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
     <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a></li>
 </ol>
 
@@ -467,11 +464,6 @@ EOF;
                 $tc = new tool_mhacker_test_coverage($filepath);
                 $cprun = $tc->add_check_points();
                 echo "<p>...Added checkpoints for the run id $cprun ...</p>";
-            }
-            if ($action === 'analyse') {
-                $tc = new tool_mhacker_test_coverage($filepath);
-                $tc->analyze();
-                echo "<p>...Analysis finished ...</p>";
             }
             if ($action === 'todos') {
                 $tc = new tool_mhacker_test_coverage($filepath);
