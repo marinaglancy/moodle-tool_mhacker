@@ -98,7 +98,7 @@ class tool_mhacker_tc_file {
     }
 
     protected $checkpoints = [];
-    public function add_check_points($cprun, &$cp) {
+    public function add_check_points($cprun) {
         if ($this->tc->is_file_ignored($this->path)) {
             // TODO should not even be added to the tree.
             return;
@@ -117,13 +117,13 @@ class tool_mhacker_tc_file {
             return;
         }
         //\core\notification::add('!!Adding checkpoints to the file '.$this->path, \core\output\notification::NOTIFY_INFO);
-        $filecp = $this->new_checkpoint($aftertoken, "", $cp);
+        $filecp = $this->new_checkpoint($aftertoken, "");
         foreach ($this->get_functions() as $function) {
-            $this->add_check_points_to_function($function, $filecp, $cp);
+            $this->add_check_points_to_function($function, $filecp);
         }
 
         if ($scanfile) {
-            $this->add_check_points_to_block($aftertoken, $this->tokenscount - 1, $filecp, $cp);
+            $this->add_check_points_to_block($aftertoken, $this->tokenscount - 1, $filecp);
         }
 
         $s = '';
@@ -142,7 +142,7 @@ class tool_mhacker_tc_file {
         file_put_contents($this->get_full_path(), $s);
     }
 
-    protected function add_check_points_to_function(stdClass $function, $prereq, &$cp) {
+    protected function add_check_points_to_function(stdClass $function, $prereq) {
         if (!$function->tagpair) {
             // Abstract function.
             return;
@@ -151,13 +151,13 @@ class tool_mhacker_tc_file {
             // No need to check.
             return;
         }
-        $functioncp = $this->new_checkpoint($function->tagpair[0], $prereq, $cp);
+        $functioncp = $this->new_checkpoint($function->tagpair[0], $prereq);
         $this->add_check_points_to_block($function->tagpair[0] + 1, $function->tagpair[1] - 1,
-            "{$prereq}, $functioncp", $cp);
+            "{$prereq}, $functioncp");
     }
 
-    protected function new_checkpoint($aftertoken, $prereq, &$cp) {
-        ++$cp;
+    protected function new_checkpoint($aftertoken, $prereq) {
+        $cp = $this->tc->get_next_cp();
         $tokens = &$this->get_tokens();
         //if ($tokens[$aftertoken + 1][0] != T_WHITESPACE || strpos($tokens[$aftertoken + 1][1], "\n") === false) {
         if (!$this->is_whitespace_token($aftertoken + 1) || !$this->is_multiline_token($aftertoken + 1)) {
@@ -168,11 +168,10 @@ class tool_mhacker_tc_file {
 
             if ($tokens[$aftertoken + 2][0] == T_COMMENT &&
                     $this->is_multiline_token($aftertoken + 2)) {
-                \core\notification::add("Skipping inline comment in file {$this->path} ", \core\output\notification::NOTIFY_WARNING);
+                //\core\notification::add("Skipping inline comment in file {$this->path} ", \core\output\notification::NOTIFY_WARNING);
                 $aftertoken = $aftertoken + 2;
             } else {
-                \core\notification::add("Error in file {$this->path} ");
-                print_object($tokens[$aftertoken + 3]);
+                \core\notification::add("Error in file {$this->path} ".print_r($tokens[$aftertoken + 3], true));
             }
 
         }
@@ -181,13 +180,62 @@ class tool_mhacker_tc_file {
         return $cp;
     }
 
-    protected function add_check_points_to_block($tid1, $tid2, $prereq, &$cp) {
+    protected function add_check_points_to_block($tid1, $tid2, $prereq) {
         $tokens = &$this->get_tokens();
         for ($tid = $tid1; $tid <= $tid2; $tid++) {
             if ($tokens[$tid][1] === '{') {
-                $this->new_checkpoint($tid, $prereq, $cp);
+                if ($tokens[$tid-1][0] == T_OBJECT_OPERATOR) {
+                    continue;
+                } else if ($this->is_switch($tid)) {
+                    $tids = $this->find_cases_in_switch($tid);
+                    foreach ($tids as $tidx) {
+                        $this->new_checkpoint($tidx, $prereq);
+                    }
+                } else {
+                    $this->new_checkpoint($tid, $prereq);
+                }
             }
         }
+    }
+
+    /**
+     * Checks if token '{' is the beginning of a switch.
+     * @param int $tid
+     */
+    protected function find_cases_in_switch($tid1) {
+        $tokens = &$this->get_tokens();
+        if ($tokens[$tid1][1] !== '{') {
+            return false;
+        }
+        if (!$tagpair = $this->find_tag_pair($tid1, '{', '}')) {
+            return false;
+        }
+        $tid2 = $tagpair[1];
+        $waitforcolon = false;
+        $rv = [];
+        for ($tid = $tid1 + 1; $tid < $tid2; $tid++) {
+            if ($waitforcolon && $tokens[$tid][1] === ':') {
+                $rv[] = $tid;
+                $waitforcolon = false;
+            } else if ($tokens[$tid][0] == T_CASE || $tokens[$tid][0] == T_DEFAULT) {
+                $waitforcolon = true;
+            } else if ($tokens[$tid][1] === '{') {
+                if (!$tagpair = $this->find_tag_pair($tid, '{', '}')) {
+                    return $rv;
+                }
+                $tid = $tagpair[1];
+            } else if ($tokens[$tid][1] === '(') {
+                if (!$tagpair = $this->find_tag_pair($tid, '(', ')')) {
+                    return $rv;
+                }
+                $tid = $tagpair[1];
+            }
+        }
+        return $rv ?: false;
+    }
+
+    protected function is_switch($tid) {
+        return $this->find_cases_in_switch($tid) !== false;
     }
 
     protected function find_config_php_inclusion() {

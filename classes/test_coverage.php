@@ -67,6 +67,11 @@ class tool_mhacker_test_coverage {
         return false;
     }
 
+    protected $cp = 0;
+    public function get_next_cp() {
+        return ++$this->cp;
+    }
+
     public function add_check_points() {
         global $DB;
         $cprun = $DB->insert_record('tool_mhacker_run',
@@ -75,9 +80,9 @@ class tool_mhacker_test_coverage {
         if (!$path->is_writeable()) {
             return false;
         }
-        $cp = 1;
-        $path->add_check_points($cprun, $cp);
-        $DB->update_record('tool_mhacker_run', ['id' => $cprun, 'maxid' => $cp]);
+        $this->cp = 0;
+        $path->add_check_points($cprun);
+        $DB->update_record('tool_mhacker_run', ['id' => $cprun, 'maxid' => $this->cp]);
         return $cprun;
     }
 
@@ -130,7 +135,7 @@ class tool_mhacker_test_coverage {
 
     protected static function file_to_db($cprun) {
         global $DB;
-        $handle = fopen(self::get_log_file(), "r");
+        $handle = @fopen(self::get_log_file(), "r");
         if ($handle) {
             while (($line = fgets($handle)) !== false) {
                 $x = preg_split('/,/', trim($line));
@@ -170,7 +175,9 @@ class tool_mhacker_test_coverage {
                 return true;
             }
 
-            if ($filepath === '/version.php' || $filepath === '/db/upgrade.php' || $filepath === '/db/access.php') {
+            if ($filepath === '/version.php' || $filepath === '/db/upgrade.php' || $filepath === '/db/access.php'
+                    || $filepath === '/db/tag.php' || $filepath === '/db/tasks.php' || $filepath === '/db/subplugins.php'
+                    || preg_match('|/lang/en/|', $filepath)) {
                 //\core\notification::add('Skip file '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }

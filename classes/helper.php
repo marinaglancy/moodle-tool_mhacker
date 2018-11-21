@@ -94,16 +94,13 @@ class tool_mhacker_helper {
      */
     public static function show_stringfiles_list() {
         global $CFG;
-        $plugintypes = array('core' => 'core') + core_component::get_plugin_types();
+        $baseurl = new moodle_url('/admin/tool/mhacker/stringhacker.php');
+        self::display_selector($baseurl);
+
+        $plugintypes = self::get_plugins();
         echo '<ul class="pluginslist">';
-        foreach ($plugintypes as $plugintype => $directory) {
+        foreach ($plugintypes as $plugintype => $plugins) {
             echo "<li>".$plugintype."</li>";
-            if ($plugintype === 'core') {
-                $plugins = core_component::get_core_subsystems() + array('moodle' => 'moodle');
-            } else {
-                $plugins = core_component::get_plugin_list($plugintype);
-            }
-            ksort($plugins);
             echo '<ul class="stringfiles">';
             foreach ($plugins as $plugin => $plugindir) {
                 $name = ($plugintype === 'core') ? $plugin : ($plugintype."_".$plugin);
@@ -111,7 +108,7 @@ class tool_mhacker_helper {
 
                 $plugindir = ($plugintype !== 'core') ? $plugindir : $CFG->dirroot;
                 if (file_exists($plugindir . '/lang/en/'. $filename.'.php')) {
-                    $url = new moodle_url('/admin/tool/mhacker/stringhacker.php', array('plugin' => $name));
+                    $url = new moodle_url($baseurl, array('plugin' => $name));
                     echo "<li>".html_writer::link($url, $name)."</li>";
                 }
             }
@@ -147,8 +144,29 @@ class tool_mhacker_helper {
             }
         }
 
+        $keys = [];
+        foreach ($chunks as $chunk) {
+            if ($chunk[1]) {
+                if (in_array($chunk[1], $keys)) {
+                    \core\notification::add('String "'.$chunk[1].'"" is repeated in the string file! Please remove manually!');
+                } else {
+                    $keys[] = $chunk[1];
+                }
+            }
+        }
+
         $string = array();
         include($filepath);
+
+        // Validating.
+//        $parsedkeys = array_filter(array_map(function($chunk) { return $chunk[1]; }, $chunks));
+//        if ($extraparsed = array_diff($parsedkeys, array_keys($string))) {
+//            \core\notification::add('There are extra parsed keys: '.join(', ', $extraparsed));
+//        }
+//        if ($extrastrings = array_diff(array_keys($string), $parsedkeys)) {
+//            \core\notification::add('Could not parse the strings: '.join(', ', $extrastrings));
+//        }
+//        echo "<pre>".join(', ', $parsedkeys)."\n".join(', ', array_keys($string));
 
         $stringkeys = array_keys($string);
         $i = 0;
@@ -309,22 +327,57 @@ class tool_mhacker_helper {
     }
 
     /**
+     * Displays the selector for the all components / addons
+     * @param moodle_url $baseurl
+     * @return bool
+     */
+    protected static function display_selector(moodle_url $baseurl) : bool {
+        $all = optional_param('all', false, PARAM_BOOL);
+        echo html_writer::tag('p',
+            !$all ? '<a href="'.$baseurl.'?all=1">Show all components</a>' : '<a href='.$baseurl.'>Show addons only</a>',
+            ['class' => 'mdl-right']);
+        return $all;
+    }
+
+    protected static function get_plugins() {
+        $all = optional_param('all', false, PARAM_BOOL);
+
+        $plugintypes = array('core' => 'core') + core_component::get_plugin_types();
+        $rv = [];
+        foreach ($plugintypes as $plugintype => $directory) {
+            if ($plugintype === 'core') {
+                $plugins = $all ? (core_component::get_core_subsystems() + array('moodle' => 'moodle')) : [];
+                if (!$all) {
+                    continue;
+                }
+            } else {
+                $standard = \core_plugin_manager::standard_plugins_list($plugintype) ?: [];
+                $plugins = array_filter(core_component::get_plugin_list($plugintype),
+                    function ($k) use ($all, $standard) {
+                        return $all ? true : !in_array($k, $standard);
+                    }, ARRAY_FILTER_USE_KEY);
+            }
+            if ($plugins) {
+                ksort($plugins);
+                $rv[$plugintype] = $plugins;
+            }
+        }
+        return $rv;
+    }
+
+    /**
      * Displays the list of plugins and core components with string files
      */
     public static function show_testcoverage_list() {
         global $CFG;
         tool_mhacker_test_coverage::check_env(true);
+        $baseurl = new moodle_url('/admin/tool/mhacker/testcoverage.php');
+        self::display_selector($baseurl);
 
-        $plugintypes = array('core' => 'core') + core_component::get_plugin_types();
+        $plugintypes = self::get_plugins();
         echo '<ul class="pluginslist">';
-        foreach ($plugintypes as $plugintype => $directory) {
+        foreach ($plugintypes as $plugintype => $plugins) {
             echo "<li>".$plugintype."</li>";
-            if ($plugintype === 'core') {
-                $plugins = core_component::get_core_subsystems() + array('moodle' => 'moodle');
-            } else {
-                $plugins = core_component::get_plugin_list($plugintype);
-            }
-            ksort($plugins);
             echo '<ul class="testcoveragefiles">';
             foreach ($plugins as $plugin => $plugindir) {
                 $name = ($plugintype === 'core') ? $plugin : ($plugintype."_".$plugin);
@@ -332,7 +385,7 @@ class tool_mhacker_helper {
 
                 $plugindir = ($plugintype !== 'core') ? $plugindir : $CFG->dirroot;
                 if (file_exists($plugindir . '/lang/en/'. $filename.'.php')) {
-                    $url = new moodle_url('/admin/tool/mhacker/testcoverage.php', array('plugin' => $name));
+                    $url = new moodle_url($baseurl, array('plugin' => $name));
                     echo "<li>".html_writer::link($url, $name)."</li>";
                 }
             }
@@ -395,7 +448,8 @@ git status</pre>
 php admin/tool/behat/cli/run.php --tags=@{$pluginname}
 </pre>
     </li>
-    <li><a href="{$url}&amp;action=analyse">Remove checkpoints covered by tests</a></li>
+    <li><a href="{$url}&amp;action=analyse">Remove checkpoints covered by tests</a><br/>&nbsp;</li>
+    <li>Now you can use "git diff" to see all remaining checkpoint. Write more tests, execute them, repeat #4 as many times as you want.<br/>&nbsp;</li>
     <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a></li>
 </ol>
 
