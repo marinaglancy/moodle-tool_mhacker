@@ -157,6 +157,19 @@ class tool_mhacker_tc_file {
         file_put_contents($this->get_full_path(), $s);
     }
 
+    public function add_check_points_to_lines($lines) {
+        $input = file_get_contents($this->get_full_path());
+        $s = '';
+        foreach (preg_split('/\\n/', $input) as $i => $line) {
+            if (in_array($i + 1, $lines)) {
+                $ins = $this->tc->get_next_cp() . ", []";
+                $s .= "\\tool_mhacker_test_coverage::cp($ins);\n";
+            }
+            $s .= $line . "\n";
+        }
+        file_put_contents($this->get_full_path(), substr($s, 0, -1));
+    }
+
     protected function add_check_points_to_function(stdClass $function, $prereq) {
         if (!$function->tagpair) {
             // Abstract function.

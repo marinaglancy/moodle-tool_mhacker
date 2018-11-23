@@ -27,6 +27,7 @@ require_once($CFG->libdir . '/adminlib.php');
 
 $pluginname = optional_param('plugin', null, PARAM_NOTAGS);
 $action = optional_param('action', null, PARAM_NOTAGS);
+$custom = optional_param('custom', false, PARAM_BOOL);
 
 admin_externalpage_setup('toolmhacker', '', null, '', array('pagelayout' => 'report'));
 
@@ -51,7 +52,10 @@ echo $OUTPUT->heading($title);
 
 tool_mhacker_helper::print_tabs('testcoverage');
 
-if ($pluginname) {
+if ($custom) {
+    tool_mhacker_helper::show_testcoverage_custom($action);
+
+} else if ($pluginname) {
     $backlink = html_writer::link($baseurl, get_string('back'));
     echo html_writer::div($backlink);
     tool_mhacker_helper::show_testcoverage_file($pluginname);

@@ -373,6 +373,9 @@ class tool_mhacker_helper {
         $baseurl = new moodle_url('/admin/tool/mhacker/testcoverage.php');
         self::display_selector($baseurl);
 
+        $customurl = new moodle_url($baseurl, ['custom' => 1]);
+        echo "<p><a href=\"$customurl\">Custom</a></p>";
+
         $plugintypes = self::get_plugins();
         echo '<ul class="pluginslist">';
         foreach ($plugintypes as $plugintype => $plugins) {
@@ -409,9 +412,61 @@ class tool_mhacker_helper {
             }
             return str_replace($CFG->dirroot . '/', '', $plugins[$matches[2]]);
         } else {
-            // TODO core component paths.
-            return false;
+            $subsystems = core_component::get_core_subsystems();
+            return array_key_exists($pluginname, $subsystems) ?
+                str_replace($CFG->dirroot . '/', '', $subsystems[$pluginname]) :
+                false;
         }
+    }
+
+    public static function show_testcoverage_custom($action) {
+        global $CFG;
+        $baseurl = new moodle_url('/admin/tool/mhacker/testcoverage.php');
+
+        $paths = optional_param('paths', '', PARAM_RAW);
+
+echo <<<EOF
+<form method="POST" action="$baseurl">
+<input type="hidden" name="custom" value="1">
+<textarea name="paths" cols="50" rows="10">$paths</textarea>
+<br><input type="radio" name="action" value="addnew" id="action1"> <label for="action1">Add checkpoints to all files</label>
+<br><input type="radio" name="action" value="todos" id="action2"> <label for="action2">Replace with TODOs</label>
+<br><input type="radio" name="action" value="removeall" id="action3"> <label for="action3">Remove all</label>
+<br><input type="submit" value="Go" name="go">
+</form>
+EOF;
+
+        $patharray = array_map('trim', preg_split('/ *\\n */', trim($paths), -1, PREG_SPLIT_NO_EMPTY));
+
+        if ($action === 'addnew') {
+            $cp = 0;
+            foreach ($patharray as $path) {
+                //echo "'$path'<br>";
+                $tc = new tool_mhacker_test_coverage(trim($path), $cp);
+                $tc->add_check_points();
+                $cp = $tc->get_next_cp() - 1;
+            }
+            echo "<p>...Added checkpoints ...</p>";
+        }
+
+        if ($action === 'todos') {
+            foreach ($patharray as $path) {
+                //echo "'$path'<br>";
+                $tc = new tool_mhacker_test_coverage(trim($path));
+                $tc->todos();
+            }
+            echo "<p>...Analysis finished ...</p>";
+        }
+
+        if ($action === 'removeall') {
+            foreach ($patharray as $path) {
+                //echo "'$path'<br>";
+                $tc = new tool_mhacker_test_coverage(trim($path));
+                $tc->remove_all_check_points();
+            }
+            echo "<p>....Removed....</p>";
+        }
+
     }
 
     /**

@@ -34,18 +34,28 @@ defined('MOODLE_INTERNAL') || die;
 class tool_mhacker_test_coverage {
 
     protected $path;
+    protected $lines = null;
+    protected $cp = 0;
 
-    public function __construct(string $path) {
+    public function __construct($path, $cp = 0) {
         $this->path = $path;
+        if (preg_match('|^(.*?):(.*?)$|', $path, $matches)) {
+            $this->path = trim($matches[1]);
+            $this->lines = preg_split('/ *, */', trim($matches[2]));
+        }
+        $this->cp = $cp;
     }
 
     public function todo_comment() {
-        return '// TODO Not covered by automated tests.';
+        return '// TODO ' . 'Not covered by automated tests.';
     }
 
-    protected $cp = 0;
     public function get_next_cp() {
         return ++$this->cp;
+    }
+
+    public function get_lines() {
+        return $this->lines;
     }
 
     public function add_check_points() {
@@ -53,7 +63,6 @@ class tool_mhacker_test_coverage {
         if (!$path->is_writeable()) {
             return;
         }
-        $this->cp = 0;
         $path->add_check_points();
     }
 
