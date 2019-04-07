@@ -172,6 +172,9 @@ class tool_mhacker_helper {
         $i = 0;
         foreach ($chunks as $idx => $chunk) {
             if (strlen($chunk[1])) {
+                if (!array_key_exists($i, $stringkeys)) {
+                    echo "Error, $i does not exist {$chunk[1]}<br>";
+                }
                 $chunks[$idx][2] = $stringkeys[$i];
                 $chunks[$idx][3] = $string[$stringkeys[$i]];
                 $i++;
@@ -181,6 +184,58 @@ class tool_mhacker_helper {
             }
         }
         return $chunks;
+    }
+
+    /**
+     * Add comments to the end of each string in the given string file
+     * @param string $filepath
+     */
+    protected static function add_comments_to_strings($filepath) {
+        $stringfiles = self::find_all_stringfile_paths($filepath);
+        foreach ($stringfiles as $stringfile) {
+            self::add_comments_to_string_file($stringfile);
+        }
+    }
+
+    /**
+     * Sorts strings in language file alphabetically
+     *
+     * @param string $pluginname
+     * @param bool $writechanges - write changes to file
+     * @param string $addkey string to add (key)
+     * @param string $addvalue string to add (value)
+     * @return false|string false if sorting is not possible or new file contents otherwise
+     */
+    protected static function add_comments_to_string_file($filepath) {
+        if (!is_writable($filepath)) {
+            return false;
+        }
+        $pluginname = basename($filepath, '.php');
+        $chunks = self::parse_stringfile($filepath);
+        $before = $after = '';
+        if (!strlen($chunks[0][1])) {
+            $before = $chunks[0][0];
+            array_shift($chunks);
+        }
+        if (!strlen($chunks[count($chunks)-1][1])) {
+            $after = $chunks[count($chunks)-1][0];
+            array_pop($chunks);
+        }
+        $tosort = array();
+        foreach ($chunks as $chunk) {
+            if ($chunk[1] !== $chunk[2]) {
+                // Key mismatch, file unsortable.
+                return false;
+            }
+            if (!strlen($chunk[1]) && !strlen(trim($chunk[0]))) {
+                // Skip empty line.
+                continue;
+            }
+            $tosort[$chunk[1]] = trim($chunk[0]) . " //mhacker_str[{$chunk[1]},$pluginname]\n";
+        }
+        $content = $before . join('', $tosort) . $after;
+        file_put_contents($filepath, $content);
+        return $content;
     }
 
     /**
@@ -244,7 +299,7 @@ class tool_mhacker_helper {
      * @param string $pluginname
      * @return string
      */
-    protected static function find_stringfile_path($pluginname) {
+    public static function find_stringfile_path($pluginname) {
         global $CFG;
         $matches = array();
         if (preg_match('/^(\w+)_(.*)$/', $pluginname, $matches)) {
@@ -261,6 +316,44 @@ class tool_mhacker_helper {
             return false;
         }
         return $filepath;
+    }
+
+    /**
+     * Flat list of all files in the directory (recursive)
+     * @param string $dir
+     * @param array $results
+     * @return array
+     */
+    protected static function get_dir_contents($dir, &$results = array()){
+        $files = scandir($dir);
+
+        foreach($files as $key => $value){
+            $path = realpath($dir.DIRECTORY_SEPARATOR.$value);
+            if(!is_dir($path)) {
+                $results[] = $path;
+            } else if($value != "." && $value != "..") {
+                self::get_dir_contents($path, $results);
+                $results[] = $path;
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Find all string files in the path
+     *
+     * Usually returns one file /lang/en/pluginame.php but can be multiple if there are embedded subplugins
+     * @param string $pluginpath
+     * @return array
+     */
+    protected static function find_all_stringfile_paths($pluginpath) {
+        global $CFG;
+        $allfiles = self::get_dir_contents($CFG->dirroot.'/'.$pluginpath);
+        $stringfiles = array_filter($allfiles, function($filename) {
+            return preg_match('|/lang/en/\w*\.php$|', $filename);
+        });
+        return $stringfiles;
     }
 
     /**
@@ -430,6 +523,7 @@ echo <<<EOF
 <input type="hidden" name="custom" value="1">
 <textarea name="paths" cols="50" rows="10">$paths</textarea>
 <br><input type="radio" name="action" value="addnew" id="action1"> <label for="action1">Add checkpoints to all files</label>
+<br><input type="radio" name="action" value="addstrings" id="action4"> <label for="action4">Add comments to strings</label>
 <br><input type="radio" name="action" value="todos" id="action2"> <label for="action2">Replace with TODOs</label>
 <br><input type="radio" name="action" value="removeall" id="action3"> <label for="action3">Remove all</label>
 <br><input type="submit" value="Go" name="go">
@@ -447,6 +541,13 @@ EOF;
                 $cp = $tc->get_next_cp() - 1;
             }
             echo "<p>...Added checkpoints ...</p>";
+        }
+
+        if ($action === 'addstrings') {
+            foreach ($patharray as $path) {
+                self::add_comments_to_strings($path);
+            }
+            echo "<p>...Added strings ...</p>";
         }
 
         if ($action === 'todos') {
@@ -492,6 +593,14 @@ git status</pre>
         <a href="{$url}&amp;action=addnew">Add checkpoints to all files</a><br/>&nbsp;
     </li>
     <li>
+        If you want to test strings usage, <a href="{$url}&amp;action=addstrings">Add comments to strings</a><br/>&nbsp;
+        Find function get_string_manager() in /lib/moodlelib.php and replace:<br>&nbsp;
+        <pre>
+- \$singleton = new core_string_manager_standard(\$CFG->langotherroot, \$CFG->langlocalroot, \$translist)
++ \$singleton = new <b>tool_mhacker_string_manager</b>(\$CFG->langotherroot, \$CFG->langlocalroot, \$translist)
+</pre>
+    </li>
+    <li>
         Run all automated tests:
 <pre>cd {$CFG->dirroot}
 php admin/tool/phpunit/cli/init.php
@@ -503,11 +612,12 @@ php admin/tool/behat/cli/init.php
 php admin/tool/behat/cli/run.php --tags=@{$pluginname}
 </pre>
     </li>
-    <li>Now you can use "git diff" to see all remaining checkpoint. Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
-    <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a></li>
+    <li>Now you can use "git diff" to see all remaining checkpointы. Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
+    <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a><br/>&nbsp;</li>
 </ol>
 
 <p>If you have too many results you can also <a href="{$url}&amp;action=removeall">Remove all checkpoints</a> in bulk</p>
+<p>Note: There is no automated action to remove the strings comments yet</p>
 EOF;
 
         if ($action = optional_param('action', null, PARAM_ALPHA)) {
@@ -521,6 +631,10 @@ EOF;
                 $tc = new tool_mhacker_test_coverage($filepath);
                 $tc->add_check_points();
                 echo "<p>...Added checkpoints ...</p>";
+            }
+            if ($action === 'addstrings') {
+                self::add_comments_to_strings($filepath);
+                echo "<p>...Added strings ...</p>";
             }
             if ($action === 'todos') {
                 $tc = new tool_mhacker_test_coverage($filepath);
