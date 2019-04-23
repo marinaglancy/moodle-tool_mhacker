@@ -65,6 +65,16 @@ if ($pluginname && $action === 'addstring') {
             get_string('erroraddingstring', 'tool_mhacker'), 5);
 }
 
+if ($pluginname && $action === 'replacestrings') {
+    $strings = required_param('strings', PARAM_RAW);
+    $result = tool_mhacker_helper::replace_strings($pluginname, $strings);
+    if ($result) {
+        redirect(new moodle_url($baseurl, array('plugin' => $pluginname)), 'Done!');
+    }
+    redirect(new moodle_url($baseurl, array('plugin' => $pluginname)),
+        get_string('errorreplacingstring', 'tool_mhacker'), 5);
+}
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading($title);
 
