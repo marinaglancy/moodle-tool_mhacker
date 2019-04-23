@@ -245,9 +245,11 @@ class tool_mhacker_helper {
      * @param bool $writechanges - write changes to file
      * @param string $addkey string to add (key)
      * @param string $addvalue string to add (value)
+     * @param array $replacements
      * @return false|string false if sorting is not possible or new file contents otherwise
      */
-    public static function sort_stringfile($pluginname, $writechanges = false, $addkey = null, $addvalue = null) {
+    public static function sort_stringfile($pluginname, $writechanges = false, $addkey = null, $addvalue = null,
+                                           $replacements = []) {
         $filepath = self::find_stringfile_path($pluginname);
         if ($filepath === false || !is_writable($filepath)) {
             return false;
@@ -272,7 +274,11 @@ class tool_mhacker_helper {
                 // Skip empty line.
                 continue;
             }
-            $tosort[$chunk[1]] = trim($chunk[0]) . "\n";
+            if (array_key_exists($chunk[1], $replacements)) {
+                $tosort[$chunk[1]] = trim($replacements[$chunk[1]]) . "\n";
+            } else {
+                $tosort[$chunk[1]] = trim($chunk[0]) . "\n";
+            }
         }
         if ($addkey) {
             if (array_key_exists($addkey, $tosort)) {
@@ -291,6 +297,24 @@ class tool_mhacker_helper {
             }
         }
         return $content;
+    }
+
+    public static function replace_strings($pluginname, $strings) {
+        $tempdir = make_temp_directory('mhacker');
+        $tempfile = tempnam($tempdir, 's');
+        file_put_contents($tempfile, "<?php\n". $strings);
+        $chunks = self::parse_stringfile($tempfile);
+        $replacements = [];
+        foreach ($chunks as $chunk) {
+            $replacements[$chunk[1]] = $chunk[0];
+        }
+        unlink($tempfile);
+        if (!$replacements) {
+            return false;
+        }
+
+        self::sort_stringfile($pluginname, true, null, null, $replacements);
+        return true;
     }
 
     /**
@@ -366,6 +390,7 @@ class tool_mhacker_helper {
         require_once($CFG->libdir.'/tablelib.php');
 
         $filepath = self::find_stringfile_path($pluginname);
+        $canwrite = false;
 
         echo "<div>";
         if (!is_writable($filepath)) {
@@ -383,6 +408,7 @@ class tool_mhacker_helper {
             echo html_writer::empty_tag('input', array('type' => 'text', 'name' => 'stringvalue', 'value' => ''));
             echo html_writer::empty_tag('input', array('type' => 'submit', 'name' => 'go', 'value' => 'Add string'));
             echo html_writer::end_tag('form');
+            $canwrite = true;
         } else {
             echo get_string('filereadingerror', 'tool_mhacker');
         }
@@ -417,6 +443,22 @@ class tool_mhacker_helper {
             $table->add_data($row, $class);
         }
         $table->finish_output();
+
+        if ($canwrite) {
+            echo "<br><br><h4>Replace strings</h4>";
+            $lnk = html_writer::link('https://docs.moodle.org/36/en/Language_customisation' .
+                '#How_to_backup_and_restore_a_customised_language_pack', 'here');
+            echo "<p>Download cutomised language files from \$CFG->dataroot/lang/xx_local as described $lnk " .
+                "and copy php code for the strings into this field:</p>";
+            echo html_writer::start_tag('form', array('method' => 'POST', 'action' => $baseurl));
+            echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'plugin', 'value' => $pluginname));
+            echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'action', 'value' => 'replacestrings'));
+            echo html_writer::empty_tag('input', array('type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()));
+            echo html_writer::tag('textarea', '', array('name' => 'strings', 'rows' => 8, 'cols' => 70)) . '<br>';
+            echo html_writer::empty_tag('input', array('type' => 'submit', 'name' => 'go', 'value' => 'Add string'));
+            echo html_writer::end_tag('form');
+
+        }
     }
 
     /**
