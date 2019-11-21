@@ -624,6 +624,7 @@ EOF;
         //echo "pluginname = $pluginname , path = $filepath<br>";
 
         $url = new moodle_url('/admin/tool/mhacker/testcoverage.php', ['plugin' => $pluginname, 'sesskey' => sesskey()]);
+        $suite = ($CFG->theme !== 'boost') ? $CFG->theme : 'default';
         echo <<<EOF
         <h3>How to calculate test coverage for plugin {$pluginname}:</h3>
 <ol>
@@ -646,15 +647,15 @@ git status</pre>
         Run all automated tests:
 <pre>cd {$CFG->dirroot}
 php admin/tool/phpunit/cli/init.php
-php admin/tool/behat/cli/init.php
+php admin/tool/behat/cli/init.php -a -j=3 -o=@{$pluginname}
 ./vendor/bin/phpunit --testsuite {$pluginname}_testsuite
 ./vendor/bin/phpunit admin/tool/dataprivacy/tests/metadata_registry_test.php
 ./vendor/bin/phpunit lib/tests/externallib_test.php
 ./vendor/bin/phpunit privacy/tests/provider_test.php
-php admin/tool/behat/cli/run.php --tags=@{$pluginname}
+php admin/tool/behat/cli/run.php --tags=@{$pluginname} --suite={$suite}
 </pre>
     </li>
-    <li>Now you can use "git diff" to see all remaining checkpointы. Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
+    <li>Now you can use "git diff" to see all remaining checkpoints. Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
     <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a><br/>&nbsp;</li>
 </ol>
 

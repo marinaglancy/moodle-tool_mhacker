@@ -73,11 +73,11 @@ class tool_mhacker_tc_file {
      * @param string $todocomment
      */
     public static function remove_check_point_from_path($fullpath, $list, $todocomment = null) {
-        if (!file_exists($fullpath) || !is_writable($fullpath)) {
+        if (!file_exists($fullpath) || !is_writable($fullpath) || !is_writable(dirname($fullpath))) {
             // Don't even bother.
             return;
         }
-        $contents = file_get_contents($fullpath);
+        $contents = $oldcontents = file_get_contents($fullpath);
         if ($list) {
             $cpregex = '('. join('|', $list) . ')';
         } else {
@@ -88,7 +88,9 @@ class tool_mhacker_tc_file {
         if ($todocomment !== null) {
             $contents = preg_replace('/\\n *' . preg_quote($todocomment, '/') . '\\n/', "\n", $contents);
         }
-        file_put_contents($fullpath, $contents);
+        if ($contents !== $oldcontents) {
+            file_put_contents($fullpath, $contents);
+        }
     }
 
     public function replace_check_points_with_todos() : array {
