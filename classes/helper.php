@@ -325,16 +325,16 @@ class tool_mhacker_helper {
      */
     public static function find_stringfile_path($pluginname) {
         global $CFG;
-        $matches = array();
-        if (preg_match('/^(\w+)_(.*)$/', $pluginname, $matches)) {
-            $plugins = core_component::get_plugin_list($matches[1]);
-            if (!array_key_exists($matches[2], $plugins)) {
+        list($type, $plugin) = core_component::normalize_component($pluginname);
+        if ($type !== 'core' && $type !== 'moodle') {
+            $plugins = core_component::get_plugin_list($type);
+            if (!array_key_exists($plugin, $plugins)) {
                 return false;
             }
-            $name = ($matches[1] === 'mod') ? $matches[2] : $pluginname;
-            $filepath = $plugins[$matches[2]] . '/lang/en/' . $name . '.php';
+            $name = ($type === 'mod') ? $plugin : "{$type}_{$plugin}";
+            $filepath = $plugins[$plugin] . '/lang/en/' . $name . '.php';
         } else {
-            $filepath = $CFG->dirroot . '/lang/en/' . $pluginname . '.php';
+            $filepath = $CFG->dirroot . '/lang/en/' . $plugin . '.php';
         }
         if (!file_exists($filepath)) {
             return false;

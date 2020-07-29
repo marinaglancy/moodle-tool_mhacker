@@ -51,7 +51,7 @@ class tool_mhacker_string_manager extends core_string_manager_standard {
         if (strlen($identifier) && strlen($component)) {
             if (($filepath = tool_mhacker_helper::find_stringfile_path($component)) && is_writable($filepath)) {
                 $t = file_get_contents($filepath);
-                $s = ' //mhacker_str['.$identifier.','.$component.']';
+                $s = ' //mhacker_str['.$identifier.','.preg_replace('/^mod_/', '', $component).']';
                 if (strpos($t, $s)) {
                     file_put_contents($filepath, str_replace($s, '', $t));
                 }
