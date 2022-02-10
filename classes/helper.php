@@ -649,9 +649,9 @@ git status</pre>
 php admin/tool/phpunit/cli/init.php
 php admin/tool/behat/cli/init.php -a -j=3 -o=@{$pluginname}
 ./vendor/bin/phpunit --testsuite {$pluginname}_testsuite
-./vendor/bin/phpunit admin/tool/dataprivacy/tests/metadata_registry_test.php
-./vendor/bin/phpunit lib/tests/externallib_test.php
-./vendor/bin/phpunit privacy/tests/provider_test.php
+./vendor/bin/phpunit --filter tool_dataprivacy_metadata_registry_testcase
+./vendor/bin/phpunit --filter core_externallib_testcase
+./vendor/bin/phpunit --testsuite core_privacy_testsuite --filter provider_testcase
 php admin/tool/behat/cli/run.php --tags=@{$pluginname} --suite={$suite}
 </pre>
     </li>

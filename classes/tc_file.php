@@ -129,8 +129,14 @@ class tool_mhacker_tc_file {
             $scanfile = true;
         } else if ($aftertoken = $this->find_defined_moodle_internal()) {
             //echo $this->path . ' defines moodle_internal at '.$aftertoken.", last token = {$tokens[$aftertoken][1]}<br>";
+        } else if ($this->get_classes() || $this->get_functions()) {
+            // Found classes or functions definitions.
+            $aftertoken = null;
+            if ($namespace = $this->find_namespace_definition()) {
+                $aftertoken = $namespace;
+            }
         } else {
-            \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
+            \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php), defined(MOODLE_INTERNAL) or functions or classes definition.');
             return;
         }
         //\core\notification::add('!!Adding checkpoints to the file '.$this->path, \core\output\notification::NOTIFY_INFO);
@@ -188,25 +194,27 @@ class tool_mhacker_tc_file {
 
     protected function new_checkpoint($aftertoken, $prereq) {
         $cp = $this->tc->get_next_cp();
-        $tokens = &$this->get_tokens();
-        //if ($tokens[$aftertoken + 1][0] != T_WHITESPACE || strpos($tokens[$aftertoken + 1][1], "\n") === false) {
-        if (!$this->is_whitespace_token($aftertoken + 1) || !$this->is_multiline_token($aftertoken + 1)) {
-            // There is no newline after this token. Hopefully a comment.
-            //print_object($tokens[$aftertoken+1]);
-            //$nonspace = $this->next_nonspace_token($aftertoken);
-            //print_object($tokens[$aftertoken + 2]);
+        if ($aftertoken !== null) {
+            $tokens = &$this->get_tokens();
+            //if ($tokens[$aftertoken + 1][0] != T_WHITESPACE || strpos($tokens[$aftertoken + 1][1], "\n") === false) {
+            if (!$this->is_whitespace_token($aftertoken + 1) || !$this->is_multiline_token($aftertoken + 1)) {
+                // There is no newline after this token. Hopefully a comment.
+                //print_object($tokens[$aftertoken+1]);
+                //$nonspace = $this->next_nonspace_token($aftertoken);
+                //print_object($tokens[$aftertoken + 2]);
 
-            if ($tokens[$aftertoken + 2][0] == T_COMMENT &&
+                if ($tokens[$aftertoken + 2][0] == T_COMMENT &&
                     $this->is_multiline_token($aftertoken + 2)) {
-                //\core\notification::add("Skipping inline comment in file {$this->path} ", \core\output\notification::NOTIFY_WARNING);
-                $aftertoken = $aftertoken + 2;
-            } else {
-                \core\notification::add("Error in file {$this->path} ".print_r($tokens[$aftertoken + 3], true));
+                    //\core\notification::add("Skipping inline comment in file {$this->path} ", \core\output\notification::NOTIFY_WARNING);
+                    $aftertoken = $aftertoken + 2;
+                } else {
+                    \core\notification::add("Error in file {$this->path} " . print_r($tokens[$aftertoken + 3], true));
+                }
+
             }
 
+            $this->checkpoints[$aftertoken][] = "$cp, [{$prereq}]";
         }
-
-        $this->checkpoints[$aftertoken][] = "$cp, [{$prereq}]";
         return $cp;
     }
 
