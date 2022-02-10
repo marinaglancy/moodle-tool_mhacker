@@ -21,16 +21,6 @@
  * @copyright   2019 Marina Glancy
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-/**
- * Class tool_mhacker_string_manager
- *
- * @package     tool_mhacker
- * @copyright   2019 Marina Glancy
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
 class tool_mhacker_string_manager extends core_string_manager_standard {
 
     /**

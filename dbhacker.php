@@ -38,7 +38,7 @@ $PAGE->set_heading($SITE->fullname);
 $PAGE->navbar->add($title, $baseurl);
 
 if (!$CFG->debugdeveloper) {
-    print_error('error_notdebugging', 'tool_mhacker');
+    throw new moodle_exception('error_notdebugging', 'tool_mhacker');
 }
 
 $tables = $DB->get_tables();

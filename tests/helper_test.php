@@ -14,25 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Plugin upgrade steps are defined here.
- *
- * @package     tool_mhacker
- * @category    upgrade
- * @copyright   2018 Marina Glancy
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace tool_mhacker;
+
+use advanced_testcase;
+use tool_mhacker_helper;
 
 /**
- * Execute tool_mhacker upgrade from the given old version.
+ * Tests for the tool_wp\db class methods.
  *
- * @param int $oldversion
- * @return bool
+ * @package    tool_mhacker
+ * @copyright  2022 Marina Glancy
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-function xmldb_tool_mhacker_upgrade($oldversion) {
-    global $DB, $CFG, $USER;
-
-    $dbman = $DB->get_manager();
-
-    return true;
+class helper_test extends advanced_testcase {
+    public function test_find_stringfile_path() {
+        global $CFG;
+        $this->assertEquals($CFG->dirroot . '/admin/tool/mhacker/lang/en/tool_mhacker.php',
+            tool_mhacker_helper::find_stringfile_path('tool_mhacker'));
+        $this->assertEquals($CFG->dirroot . '/mod/assign/lang/en/assign.php',
+            tool_mhacker_helper::find_stringfile_path('mod_assign'));
+    }
 }

@@ -14,22 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Privacy Subsystem implementation for tool_mhacker.
- *
- * @package    tool_mhacker
- * @copyright  2018 Marina Glancy
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 namespace tool_mhacker\privacy;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Privacy Subsystem for tool_mhacker implementing null_provider.
  *
  * @copyright  2018 Marina Glancy
+ * @package    tool_mhacker
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements \core_privacy\local\metadata\null_provider {
