@@ -14,18 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace tool_mhacker;
+
+use advanced_testcase;
+use tool_mhacker_helper;
+
 /**
- * Version info
- *
- * This file contains version information about tool_mhacker.
+ * Tests for the tool_wp\db class methods.
  *
  * @package    tool_mhacker
- * @copyright  2015 Marina Glancy
+ * @copyright  2022 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die;
-
-$plugin->version   = 2022021000;     // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2015050500;     // Requires this Moodle version.
-$plugin->component = 'tool_mhacker'; // Full name of the plugin (used for diagnostics).
+class helper_test extends advanced_testcase {
+    public function test_find_stringfile_path() {
+        global $CFG;
+        $this->assertEquals($CFG->dirroot . '/admin/tool/mhacker/lang/en/tool_mhacker.php',
+            tool_mhacker_helper::find_stringfile_path('tool_mhacker'));
+        $this->assertEquals($CFG->dirroot . '/mod/assign/lang/en/assign.php',
+            tool_mhacker_helper::find_stringfile_path('mod_assign'));
+    }
+}
