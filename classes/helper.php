@@ -15,16 +15,6 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Helper class for tool_mhacker
- *
- * @package    tool_mhacker
- * @copyright  2015 Marina Glancy
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
-defined('MOODLE_INTERNAL') || die;
-
-/**
  * Helper funcitons for tool_mhacker
  *
  * @package    tool_mhacker
@@ -60,7 +50,7 @@ class tool_mhacker_helper {
             $urlparams['class'] = $count ? 'nonemptytable' : 'emptytable';
             $tablenamedisplay = $tablename;
             if ($count) {
-                $tablenamedisplay.=html_writer::span(" ($count)", 'rowcount');
+                $tablenamedisplay .= html_writer::span(" ($count)", 'rowcount');
             }
             echo '<li>'.html_writer::link($url, $tablenamedisplay, $urlparams).'</li>';
         }
@@ -129,10 +119,10 @@ class tool_mhacker_helper {
         $eof = false;
         foreach ($lines as $line) {
             if (!strlen(trim($line)) || preg_match('|^\s*\/\/|', $line)) {
-                if (strlen($chunks[count($chunks)-1][1]) && preg_match('/;$/', $chunks[count($chunks)-1][0])) {
+                if (strlen($chunks[count($chunks) - 1][1]) && preg_match('/;$/', $chunks[count($chunks) - 1][0])) {
                     $chunks[] = array($line, '');
                 } else {
-                    $chunks[count($chunks)-1][0] .= $line;
+                    $chunks[count($chunks) - 1][0] .= $line;
                 }
                 if (preg_match('/deprecated/i', $line)) {
                     $eof = true;
@@ -140,7 +130,7 @@ class tool_mhacker_helper {
             } else if (!$eof && preg_match('/^\s*\$string\[(.*?)\]/', $line, $matches)) {
                 $chunks[] = array($line, trim($matches[1], "'\""));
             } else {
-                $chunks[count($chunks)-1][0] .= $line;
+                $chunks[count($chunks) - 1][0] .= $line;
             }
         }
 
@@ -158,15 +148,19 @@ class tool_mhacker_helper {
         $string = array();
         include($filepath);
 
-        // Validating.
-//        $parsedkeys = array_filter(array_map(function($chunk) { return $chunk[1]; }, $chunks));
-//        if ($extraparsed = array_diff($parsedkeys, array_keys($string))) {
-//            \core\notification::add('There are extra parsed keys: '.join(', ', $extraparsed));
-//        }
-//        if ($extrastrings = array_diff(array_keys($string), $parsedkeys)) {
-//            \core\notification::add('Could not parse the strings: '.join(', ', $extrastrings));
-//        }
-//        echo "<pre>".join(', ', $parsedkeys)."\n".join(', ', array_keys($string));
+        // Validating. Temporarily commented out.
+        if (false) {
+            $parsedkeys = array_filter(array_map(function($chunk) {
+                return $chunk[1];
+            }, $chunks));
+            if ($extraparsed = array_diff($parsedkeys, array_keys($string))) {
+                \core\notification::add('There are extra parsed keys: '.join(', ', $extraparsed));
+            }
+            if ($extrastrings = array_diff(array_keys($string), $parsedkeys)) {
+                \core\notification::add('Could not parse the strings: '.join(', ', $extrastrings));
+            }
+            echo "<pre>".join(', ', $parsedkeys)."\n".join(', ', array_keys($string));
+        }
 
         $stringkeys = array_keys($string);
         $i = 0;
@@ -200,10 +194,7 @@ class tool_mhacker_helper {
     /**
      * Sorts strings in language file alphabetically
      *
-     * @param string $pluginname
-     * @param bool $writechanges - write changes to file
-     * @param string $addkey string to add (key)
-     * @param string $addvalue string to add (value)
+     * @param string $filepath
      * @return false|string false if sorting is not possible or new file contents otherwise
      */
     protected static function add_comments_to_string_file($filepath) {
@@ -217,8 +208,8 @@ class tool_mhacker_helper {
             $before = $chunks[0][0];
             array_shift($chunks);
         }
-        if (!strlen($chunks[count($chunks)-1][1])) {
-            $after = $chunks[count($chunks)-1][0];
+        if (!strlen($chunks[count($chunks) - 1][1])) {
+            $after = $chunks[count($chunks) - 1][0];
             array_pop($chunks);
         }
         $tosort = array();
@@ -260,8 +251,8 @@ class tool_mhacker_helper {
             $before = $chunks[0][0];
             array_shift($chunks);
         }
-        if (!strlen($chunks[count($chunks)-1][1])) {
-            $after = $chunks[count($chunks)-1][0];
+        if (!strlen($chunks[count($chunks) - 1][1])) {
+            $after = $chunks[count($chunks) - 1][0];
             array_pop($chunks);
         }
         $tosort = array();
@@ -348,14 +339,14 @@ class tool_mhacker_helper {
      * @param array $results
      * @return array
      */
-    protected static function get_dir_contents($dir, &$results = array()){
+    protected static function get_dir_contents($dir, &$results = []) {
         $files = scandir($dir);
 
-        foreach($files as $key => $value){
+        foreach ($files as $key => $value) {
             $path = realpath($dir.DIRECTORY_SEPARATOR.$value);
-            if(!is_dir($path)) {
+            if (!is_dir($path)) {
                 $results[] = $path;
-            } else if($value != "." && $value != "..") {
+            } else if ($value !== "." && $value !== "..") {
                 self::get_dir_contents($path, $results);
                 $results[] = $path;
             }
@@ -555,29 +546,27 @@ class tool_mhacker_helper {
     }
 
     public static function show_testcoverage_custom($action) {
-        global $CFG;
         $baseurl = new moodle_url('/admin/tool/mhacker/testcoverage.php');
 
         $paths = optional_param('paths', '', PARAM_RAW);
 
-echo <<<EOF
-<form method="POST" action="$baseurl">
-<input type="hidden" name="custom" value="1">
-<textarea name="paths" cols="50" rows="10">$paths</textarea>
-<br><input type="radio" name="action" value="addnew" id="action1"> <label for="action1">Add checkpoints to all files</label>
-<br><input type="radio" name="action" value="addstrings" id="action4"> <label for="action4">Add comments to strings</label>
-<br><input type="radio" name="action" value="todos" id="action2"> <label for="action2">Replace with TODOs</label>
-<br><input type="radio" name="action" value="removeall" id="action3"> <label for="action3">Remove all</label>
-<br><input type="submit" value="Go" name="go">
-</form>
-EOF;
+        echo <<<EOF
+        <form method="POST" action="$baseurl">
+        <input type="hidden" name="custom" value="1">
+        <textarea name="paths" cols="50" rows="10">$paths</textarea>
+        <br><input type="radio" name="action" value="addnew" id="action1"> <label for="action1">Add checkpoints to all files</label>
+        <br><input type="radio" name="action" value="addstrings" id="action4"> <label for="action4">Add comments to strings</label>
+        <br><input type="radio" name="action" value="todos" id="action2"> <label for="action2">Replace with TODOs</label>
+        <br><input type="radio" name="action" value="removeall" id="action3"> <label for="action3">Remove all</label>
+        <br><input type="submit" value="Go" name="go">
+        </form>
+        EOF;
 
         $patharray = array_map('trim', preg_split('/ *\\n */', trim($paths), -1, PREG_SPLIT_NO_EMPTY));
 
         if ($action === 'addnew') {
             $cp = 0;
             foreach ($patharray as $path) {
-                //echo "'$path'<br>";
                 $tc = new tool_mhacker_test_coverage(trim($path), $cp);
                 $tc->add_check_points();
                 $cp = $tc->get_next_cp() - 1;
@@ -594,7 +583,6 @@ EOF;
 
         if ($action === 'todos') {
             foreach ($patharray as $path) {
-                //echo "'$path'<br>";
                 $tc = new tool_mhacker_test_coverage(trim($path));
                 $tc->todos();
             }
@@ -603,7 +591,6 @@ EOF;
 
         if ($action === 'removeall') {
             foreach ($patharray as $path) {
-                //echo "'$path'<br>";
                 $tc = new tool_mhacker_test_coverage(trim($path));
                 $tc->remove_all_check_points();
             }
@@ -621,7 +608,6 @@ EOF;
         global $CFG;
 
         $filepath = self::find_component_path($pluginname);
-        //echo "pluginname = $pluginname , path = $filepath<br>";
 
         $url = new moodle_url('/admin/tool/mhacker/testcoverage.php', ['plugin' => $pluginname, 'sesskey' => sesskey()]);
         $suite = ($CFG->theme !== 'boost') ? $CFG->theme : 'default';
@@ -655,7 +641,8 @@ php admin/tool/behat/cli/init.php -a -j=3 -o=@{$pluginname}
 php admin/tool/behat/cli/run.php --tags=@{$pluginname} --suite={$suite}
 </pre>
     </li>
-    <li>Now you can use "git diff" to see all remaining checkpoints. Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
+    <li>Now you can use "git diff" to see all remaining checkpoints.
+        Write more tests, execute them as many times as you want.<br/>&nbsp;</li>
     <li><a href="{$url}&amp;action=todos">Replace remaining checkpoints with TODOs</a><br/>&nbsp;</li>
 </ol>
 
@@ -685,7 +672,5 @@ EOF;
                 echo "<p>...Analysis finished ...</p>";
             }
         }
-
-
     }
 }

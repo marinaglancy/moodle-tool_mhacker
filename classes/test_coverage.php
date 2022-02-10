@@ -15,20 +15,12 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
-* Class tool_mhacker_test_coverage
-*
-* @package    tool_mhacker
-* @copyright  2018 Marina Glancy
-* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-*/
-
-/**
-* Class tool_mhacker_test_coverage
-*
-* @package    tool_mhacker
-* @copyright  2018 Marina Glancy
-* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-*/
+ * Class tool_mhacker_test_coverage
+ *
+ * @package    tool_mhacker
+ * @copyright  2018 Marina Glancy
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class tool_mhacker_test_coverage {
 
     protected $path;
@@ -105,20 +97,17 @@ class tool_mhacker_test_coverage {
 
         if (is_dir($this->get_full_path() . $filepath)) {
             if ($filepath === '/tests') {
-                //\core\notification::add('Skip path '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }
         } else {
             $pathinfo = pathinfo($filepath);
             if (empty($pathinfo['extension']) || ($pathinfo['extension'] != 'php' && $pathinfo['extension'] != 'inc')) {
-                //\core\notification::add('Skip file '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }
 
             if ($filepath === '/version.php' || $filepath === '/db/upgrade.php' || $filepath === '/db/access.php'
                     || $filepath === '/db/tag.php' || $filepath === '/db/tasks.php' || $filepath === '/db/subplugins.php'
                     || preg_match('|/lang/en/|', $filepath)) {
-                //\core\notification::add('Skip file '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }
         }
@@ -129,7 +118,6 @@ class tool_mhacker_test_coverage {
     public function is_function_ignored($filepath, $function) {
         if (preg_match('|/classes/event/|', $filepath) &&
             in_array($function->name, ['get_objectid_mapping', 'get_other_mapping'])) {
-            //\core\notification::add('Skip function '. $function->name .' in file '.$filepath, \core\output\notification::NOTIFY_INFO);
             return true;
         }
         return false;
