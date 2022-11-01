@@ -130,8 +130,18 @@ class tool_mhacker_tc_file {
         } else if ($aftertoken = $this->find_defined_moodle_internal()) {
             //echo $this->path . ' defines moodle_internal at '.$aftertoken.", last token = {$tokens[$aftertoken][1]}<br>";
         } else {
-            \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
-            return;
+            $classes = $this->get_classes();
+            $functions = array_filter($this->get_functions(), function($f) {
+                return empty($f->class);
+            });
+            if (count($classes) == 1 && !$functions && (!empty($classes[0]->phpdocs)) && $this->is_whitespace_token($classes[0]->phpdocs[0] - 1)) {
+                $aftertoken = $classes[0]->phpdocs[0] - 2;
+            } else if (count($functions) == 1 && !count($classes) && (!empty($functions[0]->phpdocs)) && $this->is_whitespace_token($functions[0]->phpdocs[0] - 1)) {
+                $aftertoken = $functions[0]->phpdocs[0] - 2;
+            } else {
+                \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
+                return;
+            }
         }
         //\core\notification::add('!!Adding checkpoints to the file '.$this->path, \core\output\notification::NOTIFY_INFO);
         $filecp = $this->new_checkpoint($aftertoken, "");
@@ -357,7 +367,8 @@ class tool_mhacker_tc_file {
             $this->classes = array();
             $tokens = &$this->get_tokens();
             for ($tid = 0; $tid < $this->tokenscount; $tid++) {
-                if (($this->tokens[$tid][0] == T_CLASS) && ($this->previous_nonspace_token($tid) !== "::")) {
+                if (($this->tokens[$tid][0] == T_CLASS || $this->tokens[$tid][0] == T_INTERFACE)
+                        && ($this->previous_nonspace_token($tid) !== "::")) {
                     $class = new stdClass();
                     $class->tid = $tid;
                     $class->name = $this->next_nonspace_token($tid);
@@ -888,7 +899,7 @@ class tool_mhacker_tc_file {
             $this->get_tokens();
             for ($id = 0; $id < $this->tokenscount; $id++) {
                 if (($this->tokens[$id][0] == T_DOC_COMMENT || $this->tokens[$id][0] === T_COMMENT)) {
-                    $this->allphpdocs[$id] = [];//new local_moodlecheck_phpdocs($this->tokens[$id], $id);
+                    $this->allphpdocs[$id] = [$id, $this->tokens[$id]];//new local_moodlecheck_phpdocs($this->tokens[$id], $id);
                 }
             }
         }
