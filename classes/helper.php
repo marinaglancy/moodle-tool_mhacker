@@ -38,6 +38,8 @@ class tool_mhacker_helper {
             get_string('stringhacker', 'tool_mhacker'));
         $tabs[] = new tabobject('testcoverage', new moodle_url('/admin/tool/mhacker/testcoverage.php'),
             get_string('testcoverage', 'tool_mhacker'));
+        $tabs[] = new tabobject('rb', new moodle_url('/admin/tool/mhacker/rb.php'),
+            get_string('reportbuilder', 'core_reportbuilder'));
         echo $OUTPUT->tabtree($tabs, $currenttab);
     }
 
