@@ -290,8 +290,9 @@ class tool_mhacker_tc_file {
      */
     protected function add_check_points_to_block($tid1, $tid2, $prereq) {
         $tokens = &$this->get_tokens();
+        $insidestring = null;
         for ($tid = $tid1; $tid <= $tid2; $tid++) {
-            if ($tokens[$tid][1] === '{') {
+            if ($tokens[$tid][1] === '{' && $insidestring === null) {
                 if ($tokens[$tid - 1][0] == T_OBJECT_OPERATOR) {
                     continue;
                 } else if ($this->is_switch($tid)) {
@@ -302,7 +303,18 @@ class tool_mhacker_tc_file {
                 } else {
                     $this->new_checkpoint($tid, $prereq);
                 }
+            } else if (!$insidestring && $tokens[$tid][0] == T_START_HEREDOC && substr($tokens[$tid][1], 0, 3) === '<<<') {
+                $insidestring = $tokens[$tid];
+            } else if ($insidestring && $tokens[$tid][0] == T_END_HEREDOC
+                    && trim($tokens[$tid][1]) === trim(substr($insidestring[1], 3))) {
+                $insidestring = null;
             }
+        }
+
+        if ($insidestring !== null) {
+            $x = htmlspecialchars($insidestring[1]);
+            \core\notification::add("Could not find the end delimiter for the string {$x} ".
+                "in the line {$insidestring[2]}");
         }
     }
 
