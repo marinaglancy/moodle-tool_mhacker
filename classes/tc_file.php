@@ -1,30 +1,50 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: marina
- * Date: 19/11/2018
- * Time: 14:37
- */
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Handles one file being validated
  *
- * @package    local_moodlecheck
+ * @package    tool_mhacker
  * @copyright  2012 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class tool_mhacker_tc_file {
+    /** @var tool_mhacker_test_coverage  */
     protected $tc;
+    /** @var string  */
     protected $path;
+    /** @var array */
     protected $errors = null;
+    /** @var array */
     protected $tokens = null;
+    /** @var int  */
     protected $tokenscount = 0;
+    /** @var array */
     protected $classes = null;
+    /** @var array */
     protected $functions = null;
+    /** @var array */
     protected $filephpdocs = null;
+    /** @var array */
     protected $allphpdocs = null;
+    /** @var array */
     protected $variables = null;
+    /** @var array */
     protected $defines = null;
+    /** @var array */
     protected $constants = null;
 
     /**
@@ -53,10 +73,21 @@ class tool_mhacker_tc_file {
         $this->constants = null;
     }
 
+    /**
+     * get full path
+     *
+     * @return string
+     */
     public function get_full_path() {
         return $this->tc->get_full_path() . $this->path;
     }
 
+    /**
+     * remove check points
+     *
+     * @param array $list
+     * @return void
+     */
     public function remove_check_points($list = null) {
         if ($this->tc->is_file_ignored($this->path)) {
             // TODO should not even be added to the tree.
@@ -93,6 +124,11 @@ class tool_mhacker_tc_file {
         }
     }
 
+    /**
+     * replace_check_points_with_todos
+     *
+     * @return array|string[]
+     */
     public function replace_check_points_with_todos() : array {
         $contents = file_get_contents($this->get_full_path());
         $replaced = [];
@@ -114,7 +150,14 @@ class tool_mhacker_tc_file {
         return $replaced ? ["There are " . count($replaced) . " TODOs in file <b>{$this->path}</b>"] : [];
     }
 
+    /** @var array  */
     protected $checkpoints = [];
+
+    /**
+     * add check points
+     *
+     * @return void
+     */
     public function add_check_points() {
         if ($this->tc->is_file_ignored($this->path)) {
             // TODO should not even be added to the tree.
@@ -125,25 +168,26 @@ class tool_mhacker_tc_file {
         $tokens = &$this->get_tokens();
         $scanfile = false;
         if ($aftertoken = $this->find_config_php_inclusion()) {
-            //echo $this->path . ' includes config.php at '.$aftertoken.", last token = {$tokens[$aftertoken][1]}<br>";
             $scanfile = true;
         } else if ($aftertoken = $this->find_defined_moodle_internal()) {
-            //echo $this->path . ' defines moodle_internal at '.$aftertoken.", last token = {$tokens[$aftertoken][1]}<br>";
+            null;
         } else {
             $classes = $this->get_classes();
             $functions = array_filter($this->get_functions(), function($f) {
                 return empty($f->class);
             });
-            if (count($classes) == 1 && !$functions && (!empty($classes[0]->phpdocs)) && $this->is_whitespace_token($classes[0]->phpdocs[0] - 1)) {
+            if (count($classes) == 1 && !$functions && (!empty($classes[0]->phpdocs))
+                    && $this->is_whitespace_token($classes[0]->phpdocs[0] - 1)) {
                 $aftertoken = $classes[0]->phpdocs[0] - 2;
-            } else if (count($functions) == 1 && !count($classes) && (!empty($functions[0]->phpdocs)) && $this->is_whitespace_token($functions[0]->phpdocs[0] - 1)) {
+            } else if (count($functions) == 1 && !count($classes) && (!empty($functions[0]->phpdocs))
+                    && $this->is_whitespace_token($functions[0]->phpdocs[0] - 1)) {
                 $aftertoken = $functions[0]->phpdocs[0] - 2;
             } else {
-                \core\notification::add('Skipping file '.$this->path.' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
+                \core\notification::add('Skipping file '.$this->path.
+                    ' - could not find require(config.php) or defined(MOODLE_INTERNAL).');
                 return;
             }
         }
-        //\core\notification::add('!!Adding checkpoints to the file '.$this->path, \core\output\notification::NOTIFY_INFO);
         $filecp = $this->new_checkpoint($aftertoken, "");
         foreach ($this->get_functions() as $function) {
             $this->add_check_points_to_function($function, $filecp);
@@ -169,7 +213,13 @@ class tool_mhacker_tc_file {
         file_put_contents($this->get_full_path(), $s);
     }
 
-    public function add_check_points_to_lines($lines) {
+    /**
+     * add check points to lines
+     *
+     * @param array $lines
+     * @return void
+     */
+    public function add_check_points_to_lines(array $lines) {
         $input = file_get_contents($this->get_full_path());
         $s = '';
         foreach (preg_split('/\\n/', $input) as $i => $line) {
@@ -182,9 +232,16 @@ class tool_mhacker_tc_file {
         file_put_contents($this->get_full_path(), substr($s, 0, -1));
     }
 
+    /**
+     * add check points to functions
+     *
+     * @param stdClass $function
+     * @param string $prereq
+     * @return void
+     */
     protected function add_check_points_to_function(stdClass $function, $prereq) {
         if (!$function->tagpair) {
-            // Abstract function.
+            // This is an abstract function.
             return;
         }
         if ($this->tc->is_function_ignored($this->path, $function)) {
@@ -196,22 +253,25 @@ class tool_mhacker_tc_file {
             "{$prereq}, $functioncp");
     }
 
+    /**
+     * new checkpoint
+     *
+     * @param int $aftertoken
+     * @param string $prereq
+     * @return int|mixed
+     */
     protected function new_checkpoint($aftertoken, $prereq) {
         $cp = $this->tc->get_next_cp();
         $tokens = &$this->get_tokens();
-        //if ($tokens[$aftertoken + 1][0] != T_WHITESPACE || strpos($tokens[$aftertoken + 1][1], "\n") === false) {
         if (!$this->is_whitespace_token($aftertoken + 1) || !$this->is_multiline_token($aftertoken + 1)) {
             // There is no newline after this token. Hopefully a comment.
-            //print_object($tokens[$aftertoken+1]);
-            //$nonspace = $this->next_nonspace_token($aftertoken);
-            //print_object($tokens[$aftertoken + 2]);
-
             if ($tokens[$aftertoken + 2][0] == T_COMMENT &&
                     $this->is_multiline_token($aftertoken + 2)) {
-                //\core\notification::add("Skipping inline comment in file {$this->path} ", \core\output\notification::NOTIFY_WARNING);
                 $aftertoken = $aftertoken + 2;
             } else {
+                // @codingStandardsIgnoreStart
                 \core\notification::add("Error in file {$this->path} ".print_r($tokens[$aftertoken + 3], true));
+                // @codingStandardsIgnoreEnd
             }
 
         }
@@ -220,11 +280,19 @@ class tool_mhacker_tc_file {
         return $cp;
     }
 
+    /**
+     * add check points to block
+     *
+     * @param int $tid1
+     * @param int $tid2
+     * @param string $prereq
+     * @return void
+     */
     protected function add_check_points_to_block($tid1, $tid2, $prereq) {
         $tokens = &$this->get_tokens();
         for ($tid = $tid1; $tid <= $tid2; $tid++) {
             if ($tokens[$tid][1] === '{') {
-                if ($tokens[$tid-1][0] == T_OBJECT_OPERATOR) {
+                if ($tokens[$tid - 1][0] == T_OBJECT_OPERATOR) {
                     continue;
                 } else if ($this->is_switch($tid)) {
                     $tids = $this->find_cases_in_switch($tid);
@@ -240,7 +308,8 @@ class tool_mhacker_tc_file {
 
     /**
      * Checks if token '{' is the beginning of a switch.
-     * @param int $tid
+     *
+     * @param int $tid1
      */
     protected function find_cases_in_switch($tid1) {
         $tokens = &$this->get_tokens();
@@ -274,15 +343,25 @@ class tool_mhacker_tc_file {
         return $rv ?: false;
     }
 
+    /**
+     * is token a switch
+     *
+     * @param int $tid
+     * @return bool
+     */
     protected function is_switch($tid) {
         return $this->find_cases_in_switch($tid) !== false;
     }
 
+    /**
+     * find config.php inclusion
+     *
+     * @return false|mixed
+     */
     protected function find_config_php_inclusion() {
         $tokens = &$this->get_tokens();
         for ($tid = 0; $tid < $this->tokenscount; $tid++) {
             if (in_array($tokens[$tid][0], array(T_REQUIRE, T_REQUIRE_ONCE))) {
-                //echo $this->get_filepath()." : ".print_r($tokens[$tid], true).print_r($tokens[$tid+2], true)."<br>";
                 $r = new stdClass();
                 $r->tid = $tid;
                 $r->boundaries = $b = $this->find_object_boundaries($r);
@@ -300,6 +379,11 @@ class tool_mhacker_tc_file {
         return false;
     }
 
+    /**
+     * find namespace definition
+     *
+     * @return false|mixed
+     */
     protected function find_namespace_definition() {
         $tokens = &$this->get_tokens();
         for ($tid = 0; $tid < $this->tokenscount; $tid++) {
@@ -877,10 +961,13 @@ class tool_mhacker_tc_file {
                         // This is the doc comment to the following class/function.
                         $found = false;
                     }
+                    // @codingStandardsIgnoreStart
                     // } else {
                     // TODO: change to debugging.
-                    // echo "************ Unknown token following the first phpdocs in {$this->filepath}: id = {$nexttoken[0]}, text = '{$nexttoken[1]}' **************<br>".
+                    // echo "************ Unknown token following the first phpdocs in {$this->filepath}: id = {$nexttoken[0]},
+                    // text = '{$nexttoken[1]}' **************<br>".
                     // }
+                    // @codingStandardsIgnoreEnd
                 }
             }
             $this->filephpdocs = $this->get_phpdocs($found);
@@ -899,7 +986,8 @@ class tool_mhacker_tc_file {
             $this->get_tokens();
             for ($id = 0; $id < $this->tokenscount; $id++) {
                 if (($this->tokens[$id][0] == T_DOC_COMMENT || $this->tokens[$id][0] === T_COMMENT)) {
-                    $this->allphpdocs[$id] = [$id, $this->tokens[$id]];//new local_moodlecheck_phpdocs($this->tokens[$id], $id);
+                    $this->allphpdocs[$id] = [$id, $this->tokens[$id]];
+                    // TODO replace with new local_moodlecheck_phpdocs ( $ this -> tokens[$id], $id); .
                 }
             }
         }
