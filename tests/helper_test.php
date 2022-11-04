@@ -14,24 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-namespace tool_mhacker\privacy;
+namespace tool_mhacker;
+
+use tool_mhacker_helper;
 
 /**
- * Privacy Subsystem for tool_mhacker implementing null_provider.
+ * dbhacker file for tool_mhacker
  *
  * @package    tool_mhacker
- * @copyright  2018 Marina Glancy
+ * @copyright  2022 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers     \tool_mhacker_helper
  */
-class provider implements \core_privacy\local\metadata\null_provider {
+class helper_test extends \advanced_testcase {
+    public function test_print_tabs() {
+        ob_start();
+        tool_mhacker_helper::print_tabs('dbhacker');
+        $contents = ob_get_contents();
+        $this->assertNotEmpty($contents);
+        ob_end_clean();
+    }
 
-    /**
-     * Get the language string identifier with the component's language
-     * file to explain why this plugin stores no data.
-     *
-     * @return  string
-     */
-    public static function get_reason() : string {
-        return 'privacy:metadata';
+    public function test_find_stringfile_path() {
+        global $CFG;
+        $this->assertEquals($CFG->dirroot . '/admin/tool/mhacker/lang/en/tool_mhacker.php',
+            tool_mhacker_helper::find_stringfile_path('tool_mhacker'));
+        $this->assertEquals($CFG->dirroot . '/mod/assign/lang/en/assign.php',
+            tool_mhacker_helper::find_stringfile_path('mod_assign'));
     }
 }

@@ -15,26 +15,26 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
-* Class tool_mhacker_test_coverage
-*
-* @package    tool_mhacker
-* @copyright  2018 Marina Glancy
-* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-*/
-
-/**
-* Class tool_mhacker_test_coverage
-*
-* @package    tool_mhacker
-* @copyright  2018 Marina Glancy
-* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-*/
+ * Class tool_mhacker_test_coverage
+ *
+ * @package    tool_mhacker
+ * @copyright  2018 Marina Glancy
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class tool_mhacker_test_coverage {
-
+    /** @var string */
     protected $path;
+    /** @var array */
     protected $lines = null;
+    /** @var int */
     protected $cp = 0;
 
+    /**
+     * Constructor
+     *
+     * @param string $path
+     * @param int $cp
+     */
     public function __construct($path, $cp = 0) {
         $this->path = $path;
         if (preg_match('|^(.*?):(.*?)$|', $path, $matches)) {
@@ -44,18 +44,38 @@ class tool_mhacker_test_coverage {
         $this->cp = $cp;
     }
 
+    /**
+     * todo comment
+     *
+     * @return string
+     */
     public function todo_comment() {
         return '// TODO ' . 'Not covered by automated tests.';
     }
 
+    /**
+     * get next checkpoint
+     *
+     * @return int
+     */
     public function get_next_cp() {
         return ++$this->cp;
     }
 
+    /**
+     * get lines
+     *
+     * @return array
+     */
     public function get_lines() {
         return $this->lines;
     }
 
+    /**
+     * add check points
+     *
+     * @return void
+     */
     public function add_check_points() {
         $path = new tool_mhacker_tc_path($this);
         if (!$path->is_writeable()) {
@@ -64,6 +84,11 @@ class tool_mhacker_test_coverage {
         $path->add_check_points();
     }
 
+    /**
+     * remove all check points
+     *
+     * @return void
+     */
     public function remove_all_check_points() {
         $path = new tool_mhacker_tc_path($this);
         if (!$path->is_writeable()) {
@@ -72,6 +97,11 @@ class tool_mhacker_test_coverage {
         $path->remove_check_points();
     }
 
+    /**
+     * todos
+     *
+     * @return void
+     */
     public function todos() {
         $path = new tool_mhacker_tc_path($this);
         if (!$path->is_writeable()) {
@@ -81,6 +111,13 @@ class tool_mhacker_test_coverage {
         echo "<pre>".join("\n", $list)."</pre>";
     }
 
+    /**
+     * checkpoint
+     *
+     * @param int $cp
+     * @param array $prereq
+     * @return void
+     */
     public static function cp($cp, $prereq = []) {
         if ((defined('PHPUNIT_TEST') && PHPUNIT_TEST) || defined('BEHAT_SITE_RUNNING')) {
             $backtrace = debug_backtrace();
@@ -88,15 +125,31 @@ class tool_mhacker_test_coverage {
         }
     }
 
+    /**
+     * get path
+     *
+     * @return string
+     */
     public function get_path() {
         return $this->path;
     }
 
+    /**
+     * get full path
+     *
+     * @return string
+     */
     public function get_full_path() {
         global $CFG;
         return $CFG->dirroot. '/'. $this->path;
     }
 
+    /**
+     * is file ignored
+     *
+     * @param string $filepath
+     * @return bool
+     */
     public function is_file_ignored($filepath) {
         $file = basename($filepath);
         if ($file === '.git' || $file === '.hg') {
@@ -105,20 +158,17 @@ class tool_mhacker_test_coverage {
 
         if (is_dir($this->get_full_path() . $filepath)) {
             if ($filepath === '/tests') {
-                //\core\notification::add('Skip path '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }
         } else {
             $pathinfo = pathinfo($filepath);
             if (empty($pathinfo['extension']) || ($pathinfo['extension'] != 'php' && $pathinfo['extension'] != 'inc')) {
-                //\core\notification::add('Skip file '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }
 
             if ($filepath === '/version.php' || $filepath === '/db/upgrade.php' || $filepath === '/db/access.php'
                     || $filepath === '/db/tag.php' || $filepath === '/db/tasks.php' || $filepath === '/db/subplugins.php'
                     || preg_match('|/lang/en/|', $filepath)) {
-                //\core\notification::add('Skip file '.$filepath, \core\output\notification::NOTIFY_INFO);
                 return true;
             }
         }
@@ -126,10 +176,16 @@ class tool_mhacker_test_coverage {
         return false;
     }
 
+    /**
+     * is function ignored
+     *
+     * @param string $filepath
+     * @param stdClass $function
+     * @return bool
+     */
     public function is_function_ignored($filepath, $function) {
         if (preg_match('|/classes/event/|', $filepath) &&
             in_array($function->name, ['get_objectid_mapping', 'get_other_mapping'])) {
-            //\core\notification::add('Skip function '. $function->name .' in file '.$filepath, \core\output\notification::NOTIFY_INFO);
             return true;
         }
         return false;

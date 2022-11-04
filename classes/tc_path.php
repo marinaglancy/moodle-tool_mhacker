@@ -1,24 +1,38 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: marina
- * Date: 19/11/2018
- * Time: 14:36
- */
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Handles one path being validated (file or directory)
  *
- * @package    local_moodlecheck
+ * @package    tool_mhacker
  * @copyright  2012 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class tool_mhacker_tc_path {
+    /** @var tool_mhacker_test_coverage  */
     protected $tc;
+    /** @var string  */
     protected $path;
+    /** @var tool_mhacker_tc_file  */
     protected $file = null;
+    /** @var self[] */
     protected $subpaths = null;
+    /** @var bool  */
     protected $treebuilt = false;
+    /** @var bool */
     protected $rootpath = true;
 
     /**
@@ -32,10 +46,20 @@ class tool_mhacker_tc_path {
         $this->path = $path;
     }
 
+    /**
+     * get full path
+     *
+     * @return string
+     */
     public function get_full_path() {
         return $this->tc->get_full_path() . $this->path;
     }
 
+    /**
+     * build tree
+     *
+     * @return void
+     */
     public function build_tree() {
         if ($this->treebuilt) {
             // Prevent from second validation.
@@ -59,6 +83,11 @@ class tool_mhacker_tc_path {
         $this->treebuilt = true;
     }
 
+    /**
+     * is writable
+     *
+     * @return bool
+     */
     public function is_writeable() {
         $writable = true;
         $this->build_tree();
@@ -78,15 +107,27 @@ class tool_mhacker_tc_path {
         return $writable;
     }
 
+    /**
+     * is file
+     *
+     * @return bool
+     */
     public function is_file() {
         return $this->file !== null;
     }
 
+    /**
+     * is dir
+     *
+     * @return bool
+     */
     public function is_dir() {
         return $this->subpaths !== null;
     }
 
     /**
+     * get file
+     *
      * @return tool_mhacker_tc_file
      */
     public function get_file() {
@@ -94,20 +135,38 @@ class tool_mhacker_tc_path {
     }
 
     /**
+     * get subpaths
+     *
      * @return self[]
      */
     public function get_subpaths() {
         return $this->subpaths;
     }
 
+    /**
+     * set root path
+     *
+     * @param string $rootpath
+     * @return void
+     */
     protected function set_rootpath($rootpath) {
         $this->rootpath = (boolean)$rootpath;
     }
 
+    /**
+     * is rootpath
+     *
+     * @return bool
+     */
     public function is_rootpath() {
         return $this->rootpath;
     }
 
+    /**
+     * add check points
+     *
+     * @return void
+     */
     public function add_check_points() {
         $this->build_tree();
         if ($this->is_file()) {
@@ -123,6 +182,12 @@ class tool_mhacker_tc_path {
         }
     }
 
+    /**
+     * remove check points
+     *
+     * @param array|null $list
+     * @return void
+     */
     public function remove_check_points(array $list = null) {
         $this->build_tree();
         if ($this->is_file()) {
@@ -134,6 +199,11 @@ class tool_mhacker_tc_path {
         }
     }
 
+    /**
+     * remove check points with todos
+     *
+     * @return array
+     */
     public function replace_check_points_with_todos() : array {
         $result = [];
         $this->build_tree();
