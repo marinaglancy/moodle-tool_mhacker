@@ -107,11 +107,30 @@ class rbgenerator {
 
         $pdir = core_component::get_component_directory($this->data->component);
         $file = $pdir.'/classes/reportbuilder/local/entities/'.$this->data->classname.'.php';
+        $langfile = $this->get_component_lang_file();
         $this->require_writeable($file);
-        $langfile = $pdir.'/lang/en/'.preg_replace('/^mod_/', '', $this->data->component).'.php';
         $this->require_writeable($langfile);
         file_put_contents($file, $entity);
         file_put_contents($langfile, $strings."\n", FILE_APPEND);
+    }
+
+    /**
+     * Language file for the component
+     *
+     * @return string
+     */
+    protected function get_component_lang_file() {
+        global $CFG;
+        if (preg_match('/^core_(.*)$/', $this->data->component, $matches)) {
+            $langfile = $CFG->dirroot.'/lang/en/'.$matches[1].'.php';
+            if (!file_exists($langfile)) {
+                $langfile = $CFG->dirroot.'/lang/en/moodle.php';
+            }
+        } else {
+            $pdir = core_component::get_component_directory($this->data->component);
+            $langfile = $pdir.'/lang/en/'.preg_replace('/^mod_/', '', $this->data->component).'.php';
+        }
+        return $langfile;
     }
 
     /**
@@ -178,7 +197,7 @@ class rbgenerator {
         $pdir = core_component::get_component_directory($this->data->component);
         $file = $pdir.'/classes/reportbuilder/datasource/'.$this->data->classname.'.php';
         $this->require_writeable($file);
-        $langfile = $pdir.'/lang/en/'.preg_replace('/^mod_/', '', $this->data->component).'.php';
+        $langfile = $this->get_component_lang_file();
         $this->require_writeable($langfile);
         $testfile = $pdir.'/tests/reportbuilder/datasource/'.$this->data->classname.'_test.php';
         $this->require_writeable($testfile);
@@ -413,7 +432,7 @@ EOL;
      * @return int|string|null
      */
     protected function get_main_table_in_entity(string $entityclass) {
-        if ($entityclass === course_category::class) {
+        if ($entityclass === course_category::class || $entityclass === \core_course\reportbuilder\local\entities\course_category::class) {
             return 'course_categories';
         } else {
             $tables = self::call_protected_entity_method($entityclass, 'get_default_table_aliases');

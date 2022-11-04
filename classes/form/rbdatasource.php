@@ -128,6 +128,11 @@ class rbdatasource extends \core_form\dynamic_form {
      */
     protected function get_all_plugins() {
         $res = [];
+        foreach (\core_component::get_core_subsystems() as $subsystem => $dir) {
+            if ($dir) {
+                $res[] = "core_$subsystem";
+            }
+        }
         foreach (\core_component::get_plugin_types() as $type => $unused) {
             foreach (\core_component::get_plugin_list($type) as $plugin => $unused2) {
                 $res[] = "{$type}_{$plugin}";
@@ -149,7 +154,11 @@ class rbdatasource extends \core_form\dynamic_form {
             if (is_subclass_of($classname, base::class)) {
                 $reflectionclass = new \ReflectionClass($classname);
                 if (!$reflectionclass->isAbstract()) {
-                    $title = rbgenerator::call_protected_entity_method($classname, 'get_default_entity_title');
+                    try {
+                        $title = rbgenerator::call_protected_entity_method($classname, 'get_default_entity_title');
+                    } catch (\Throwable $t) {
+                        continue;
+                    }
                     $instances[$classname] = $title . ' - ' .$classname;
                 }
             }

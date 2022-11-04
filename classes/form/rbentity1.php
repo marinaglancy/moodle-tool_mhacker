@@ -103,20 +103,25 @@ class rbentity1 extends \core_form\dynamic_form {
      * @return array
      */
     public static function get_all_tables() {
+        global $CFG;
         $alltables = [];
+        $files = ['core' => $CFG->dirroot.'/lib/db/install.xml'];
         foreach (core_component::get_plugin_types() as $type => $unused) {
             $plugins = core_component::get_plugin_list($type);
             foreach ($plugins as $plugin => $fulldir) {
-                $filename = $fulldir.'/db/install.xml';
+                $filename = $fulldir . '/db/install.xml';
                 if (file_exists($filename)) {
-                    $xmldbfile = new \xmldb_file($filename);
-                    $xmldbfile->loadXMLStructure();
-                    $structure = $xmldbfile->getStructure();
-                    $tables = $structure->getTables();
-                    foreach ($tables as $table) {
-                        $alltables[$table->getName()] = ["{$type}_{$plugin}", $table];
-                    }
+                    $files["{$type}_{$plugin}"] = $filename;
                 }
+            }
+        }
+        foreach ($files as $pluginname => $filename) {
+            $xmldbfile = new \xmldb_file($filename);
+            $xmldbfile->loadXMLStructure();
+            $structure = $xmldbfile->getStructure();
+            $tables = $structure->getTables();
+            foreach ($tables as $table) {
+                $alltables[$table->getName()] = [$pluginname, $table];
             }
         }
         return $alltables;

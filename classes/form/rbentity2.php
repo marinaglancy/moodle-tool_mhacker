@@ -76,7 +76,7 @@ class rbentity2 extends \core_form\dynamic_form {
         $this->get_table();
         $data = $this->get_data();
         $r = [
-            'component' => $this->tableplugin,
+            'component' => 'core_grades', // empty($data->component) ? $this->tableplugin : "core_{$data->component}",
             'classname' => $data->classname,
             'tablename' => $data->tablename,
             'fields' => $this->export_fields(),
@@ -194,7 +194,12 @@ class rbentity2 extends \core_form\dynamic_form {
         $form->setType('tablename', PARAM_ALPHANUMEXT);
 
         $form->addElement('static', 'tablename_static', 'Table name', $this->get_table()->getName());
-        $form->addElement('static', 'pluginname_static', 'Plugin', $this->tableplugin);
+        if ($this->tableplugin === 'core') {
+            $subsystems = array_keys(core_component::get_core_subsystems());
+            $form->addElement('select', 'component', 'Component', array_combine($subsystems, $subsystems));
+        } else {
+            $form->addElement('static', 'pluginname_static', 'Plugin', $this->tableplugin);
+        }
         $form->addElement('text', 'classname', 'Entity class name to generate');
         $form->setType('classname', PARAM_ALPHANUMEXT);
 
