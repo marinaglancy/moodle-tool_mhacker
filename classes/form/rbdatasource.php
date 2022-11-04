@@ -17,17 +17,19 @@
 namespace tool_mhacker\form;
 
 use context;
-use core_component;
+use core_reportbuilder\local\entities\base;
+use core_reportbuilder\manager;
 use moodle_url;
+use tool_mhacker\rbgenerator;
 
 /**
- * Reportbuilder entity form1
+ * Reportbuilder datasource form
  *
  * @package     tool_mhacker
  * @copyright   2022 Marina Glancy
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class rbentity1 extends \core_form\dynamic_form {
+class rbdatasource extends \core_form\dynamic_form {
 
     /**
      * Returns context where this form is used
@@ -63,9 +65,18 @@ class rbentity1 extends \core_form\dynamic_form {
      * @return void
      */
     public function process_dynamic_submission() {
-        $data = $this->get_data();
-        redirect(new moodle_url('/admin/tool/mhacker/rb.php',
-            ['action' => 'generateentity', 'tablename' => $data->tablename]));
+        $data = (array)$this->get_data();
+        $data['entities'] = [];
+        for ($i = 0; $i < 10; $i++) {
+            if (!empty($data['entity_'.$i])) {
+                $data['entities'][] = $data['entity_'.$i];
+            }
+            unset($data['entity_'.$i]);
+        }
+        $gen = new rbgenerator((object)$data);
+        $gen->save_datasource();
+        echo "OK";
+        exit;
     }
 
     /**
@@ -89,36 +100,61 @@ class rbentity1 extends \core_form\dynamic_form {
      * Form definition
      */
     protected function definition() {
+
+        $allentities = ['' => ''] + $this->get_all_entities();
         $form = $this->_form;
-        $alltables = array_keys(self::get_all_tables());
-        sort($alltables);
-        $tables = array_combine($alltables, $alltables);
-        $form->addElement('autocomplete', 'tablename', 'Generate entity from table', ['' => ''] + $tables, []);
-        $this->add_action_buttons(false, 'Next');
+
+        $form->addElement('hidden', 'action', $this->optional_param('action', '', PARAM_ALPHANUMEXT));
+        $form->setType('action', PARAM_ALPHANUMEXT);
+
+        $form->addElement('text', 'classname', 'Datasource class name to generate');
+        $form->setType('classname', PARAM_ALPHANUMEXT);
+
+        $plugins = $this->get_all_plugins();
+        $form->addElement('autocomplete', 'component', 'Component', ['' => ''] + array_combine($plugins, $plugins));
+        $form->setType('component', PARAM_COMPONENT);
+
+        for ($i = 0; $i < 10; $i++) {
+            $form->addElement('select', 'entity_'.$i, 'Entity '.($i + 1), $allentities);
+        }
+
+        $this->add_action_buttons(true, 'Generate');
     }
 
     /**
-     * Get all tables in the system
+     * List of all plugins
      *
      * @return array
      */
-    public static function get_all_tables() {
-        $alltables = [];
-        foreach (core_component::get_plugin_types() as $type => $unused) {
-            $plugins = core_component::get_plugin_list($type);
-            foreach ($plugins as $plugin => $fulldir) {
-                $filename = $fulldir.'/db/install.xml';
-                if (file_exists($filename)) {
-                    $xmldbfile = new \xmldb_file($filename);
-                    $xmldbfile->loadXMLStructure();
-                    $structure = $xmldbfile->getStructure();
-                    $tables = $structure->getTables();
-                    foreach ($tables as $table) {
-                        $alltables[$table->getName()] = ["{$type}_{$plugin}", $table];
-                    }
+    protected function get_all_plugins() {
+        $res = [];
+        foreach (\core_component::get_plugin_types() as $type => $unused) {
+            foreach (\core_component::get_plugin_list($type) as $plugin => $unused2) {
+                $res[] = "{$type}_{$plugin}";
+            }
+        }
+        return $res;
+    }
+
+    /**
+     * List of avialable entities
+     *
+     * @return array
+     */
+    protected function get_all_entities() {
+        $instances = [];
+        $classes1 = \core_component::get_component_classes_in_namespace(null, 'reportbuilder\\local\\entities');
+        $classes2 = \core_component::get_component_classes_in_namespace(null, 'local\\entities');
+        foreach (array_merge(array_keys($classes1), array_keys($classes2)) as $classname) {
+            if (is_subclass_of($classname, base::class)) {
+                $reflectionclass = new \ReflectionClass($classname);
+                if (!$reflectionclass->isAbstract()) {
+                    $title = rbgenerator::call_protected_entity_method($classname, 'get_default_entity_title');
+                    $instances[$classname] = $title . ' - ' .$classname;
                 }
             }
         }
-        return $alltables;
+
+        return $instances;
     }
 }

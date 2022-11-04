@@ -16,6 +16,9 @@
 
 namespace tool_mhacker;
 
+use core_component;
+use core_course\local\entities\course_category;
+use core_reportbuilder\datasource;
 use core_reportbuilder\local\entities\base;
 use core_reportbuilder\local\filters\boolean_select;
 use core_reportbuilder\local\filters\date;
@@ -48,8 +51,6 @@ class rbgenerator {
      */
     public function __construct(\stdClass $data) {
         $this->data = $data;
-        $this->add_uses(base::class);
-        $this->add_uses(\lang_string::class);
     }
 
     /**
@@ -59,6 +60,8 @@ class rbgenerator {
      */
     public function out_entity(): string {
         global $OUTPUT;
+        $this->add_uses(base::class);
+        $this->add_uses(\lang_string::class);
         $this->add_string("entity_{$this->data->classname}", ucfirst($this->data->classname));
         return $OUTPUT->render_from_template('tool_mhacker/rb/entity', [
             'name' => $this->data->classname,
@@ -68,8 +71,120 @@ class rbgenerator {
             'is_single_declaration' => 1,
             'columns' => $this->export_columns(),
             'filters' => $this->export_filters(),
-            'uses' => $this->uses,
+            'uses' => $this->get_uses(),
         ]);
+    }
+
+    /**
+     * Checks file is writeable
+     *
+     * @param string $file
+     * @return void
+     * @throws \coding_exception
+     */
+    protected function require_writeable(string $file) {
+        if (!file_exists(dirname($file))) {
+            mkdir(dirname($file), 0777, true);
+        }
+        if (file_exists($file)) {
+            if (!is_writable($file)) {
+                throw new \coding_exception("chmod 666 $file");
+            }
+        } else if (!is_writable(dirname($file))) {
+            throw new \coding_exception("chmod 777 ".dirname($file));
+        }
+    }
+
+    /**
+     * Save entity
+     *
+     * @return void
+     * @throws \coding_exception
+     */
+    public function save_entity() {
+        $entity = $this->out_entity();
+        $strings = $this->get_strings();
+
+        $pdir = core_component::get_component_directory($this->data->component);
+        $file = $pdir.'/classes/reportbuilder/local/entities/'.$this->data->classname.'.php';
+        $this->require_writeable($file);
+        $langfile = $pdir.'/lang/en/'.preg_replace('/^mod_/', '', $this->data->component).'.php';
+        $this->require_writeable($langfile);
+        file_put_contents($file, $entity);
+        file_put_contents($langfile, $strings."\n", FILE_APPEND);
+    }
+
+    /**
+     * Content of datasource file
+     *
+     * @return string
+     */
+    public function out_datasource(): string {
+        global $OUTPUT;
+        $this->add_uses(datasource::class);
+        $this->add_string("datasource_{$this->data->classname}", ucfirst($this->data->classname));
+        $entities = $this->export_datasource_entities();
+        $defcolumns = $deffilters = [];
+        foreach ($entities as $entity) {
+            $defcolumns[] = $entity['firstcolumn'];
+            $deffilters[] = $entity['firstfilter'];
+        }
+        return $OUTPUT->render_from_template('tool_mhacker/rb/datasource', [
+            'name' => $this->data->classname,
+            'component' => $this->data->component,
+            'copyright' => '2022 Marina Glancy',
+            'is_single_declaration' => 1,
+            'entities' => $entities,
+            'defaultcolumns' => $defcolumns,
+            'defaultfilters' => $deffilters,
+            'uses' => $this->get_uses(),
+        ]);
+    }
+
+    /**
+     * Content of test file
+     *
+     * @return string
+     */
+    protected function out_datasource_test(): string {
+        global $OUTPUT;
+        $this->uses = [];
+        $this->add_uses(\core_reportbuilder_testcase::class);
+        $entities = array_filter($this->data->entities);
+        /** @var column[] $columns */
+        $columns = self::call_protected_entity_method(reset($entities), 'get_all_columns');
+        return $OUTPUT->render_from_template('tool_mhacker/rb/rbtest', [
+            'name' => $this->data->classname,
+            'component' => $this->data->component,
+            'copyright' => '2022 Marina Glancy',
+            'is_single_declaration' => 0,
+            'firstcolumn' => $columns[0]->get_unique_identifier(),
+            'uses' => $this->get_uses(),
+        ]);
+    }
+
+    /**
+     * Save datasource
+     *
+     * @return void
+     * @throws \coding_exception
+     */
+    public function save_datasource() {
+        $datasource = $this->out_datasource();
+        $strings = $this->get_strings();
+        $this->uses = [];
+        $test = $this->out_datasource_test();
+
+        $pdir = core_component::get_component_directory($this->data->component);
+        $file = $pdir.'/classes/reportbuilder/datasource/'.$this->data->classname.'.php';
+        $this->require_writeable($file);
+        $langfile = $pdir.'/lang/en/'.preg_replace('/^mod_/', '', $this->data->component).'.php';
+        $this->require_writeable($langfile);
+        $testfile = $pdir.'/tests/reportbuilder/datasource/'.$this->data->classname.'_test.php';
+        $this->require_writeable($testfile);
+        file_put_contents($file, $datasource);
+        file_put_contents($langfile, $strings."\n", FILE_APPEND);
+        file_put_contents($testfile, $test);
     }
 
     /**
@@ -83,6 +198,17 @@ class rbgenerator {
         }
         $x = preg_split('/\\\\/', $classname);
         return end($x);
+    }
+
+    /**
+     * Get all 'uses' as string
+     *
+     * @return string
+     */
+    protected function get_uses(): string {
+        return join("\n", array_map(function ($s) {
+            return "use $s;";
+        }, $this->uses));
     }
 
     /**
@@ -176,8 +302,8 @@ class rbgenerator {
         if ($type == column::TYPE_BOOLEAN) {
             $this->add_uses(format::class);
             return <<<EOL
-static function(?int \$value, stdClass \$row): string {
-                return isnull(\$value) ? '' : format::boolean_as_text(\$value);
+static function(?int \$value, stdClass \$row): ?string {
+                return is_null(\$value) ? null : format::boolean_as_text(\$value);
             }
 EOL;
         } else if ($type == column::TYPE_TIMESTAMP) {
@@ -185,20 +311,20 @@ EOL;
             return "[format::class, 'userdate']";
         } else if ($type == column::TYPE_FLOAT) {
             return <<<EOL
-static function(?float \$value, stdClass \$row): string {
-                return isnull(\$value) ? '' : sprintf("%.2f", \$value);
+static function(\$value, stdClass \$row): ?string {
+                return is_null(\$value) ? null : sprintf("%.2f", \$value);
             }
 EOL;
         } else if ($force && $type == column::TYPE_INTEGER) {
             return <<<EOL
-static function(?int \$value, stdClass \$row): string {
-                return isnull(\$value) ? '' : (string)\$value;
+static function(?int \$value, stdClass \$row): ?string {
+                return is_null(\$value) ? null : (string)\$value;
             }
 EOL;
         } else if ($force) {
             return <<<EOL
-static function(?string \$value, stdClass \$row): string {
-                return \$value ?? '';
+static function(?string \$value, stdClass \$row): ?string {
+                return \$value;
             }
 EOL;
         }
@@ -249,5 +375,66 @@ EOL;
         } else {
             return text::class;
         }
+    }
+
+    /**
+     * Get datasource entieis
+     *
+     * @return array
+     */
+    protected function export_datasource_entities() {
+        $res = [];
+        $preventityname = null;
+        foreach ($this->data->entities as $entityclass) {
+            $classalias = $this->add_uses($entityclass);
+            $entityname = preg_replace('/_/', '', $classalias);
+            $table = $this->get_main_table_in_entity($entityclass);
+            $columns = self::call_protected_entity_method($entityclass, 'get_all_columns');
+            $filters = self::call_protected_entity_method($entityclass, 'get_all_filters');
+            $res[] = [
+                'entityname' => $entityname,
+                'entityclass' => $classalias,
+                'entitytable' => $table,
+                'entitytableinbrackets' => '{'.$table.'}',
+                'firstcolumn' => $columns[0]->get_unique_identifier(),
+                'firstfilter' => $filters[0]->get_unique_identifier(),
+                'preventityname' => $preventityname,
+            ];
+            $preventityname = $entityname;
+        }
+
+        return $res;
+    }
+
+    /**
+     * Main table in the entity
+     *
+     * @param string $entityclass
+     * @return int|string|null
+     */
+    protected function get_main_table_in_entity(string $entityclass) {
+        if ($entityclass === course_category::class) {
+            return 'course_categories';
+        } else {
+            $tables = self::call_protected_entity_method($entityclass, 'get_default_table_aliases');
+            return key($tables);
+        }
+    }
+
+    /**
+     * Call protected method on a class
+     *
+     * @param string $classname
+     * @param string $method
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    public static function call_protected_entity_method(string $classname, string $method) {
+        $reflectionclass = new \ReflectionClass($classname);
+        $rcp = $reflectionclass->getMethod($method);
+        $rcp->setAccessible(true);
+        /** @var base $instance */
+        $instance = new $classname();
+        return $rcp->invoke($instance);
     }
 }

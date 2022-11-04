@@ -82,27 +82,7 @@ class rbentity2 extends \core_form\dynamic_form {
             'fields' => $this->export_fields(),
         ];
         $gen = new rbgenerator((object)$r);
-        $entity = $gen->out_entity();
-        $strings = $gen->get_strings();
-
-        $pdir = core_component::get_component_directory($this->tableplugin);
-        $file = $pdir.'/classes/reportbuilder/local/entities/'.$data->classname.'.php';
-        if (!file_exists(dirname($file))) {
-            mkdir(dirname($file), 0777, true);
-        }
-        if (file_exists($file)) {
-            if (!is_writable($file)) {
-                throw new \coding_exception("chmod 666 $file");
-            }
-        } else if (!is_writable($pdir)) {
-            throw new \coding_exception("chmod 777 $pdir");
-        }
-        $langfile = $pdir.'/lang/en/'.$this->tableplugin.'.php'; // TODO different for mod.
-        if (!is_writable($langfile)) {
-            throw new \coding_exception("chmod 666 $langfile");
-        }
-        file_put_contents($file, $entity);
-        file_put_contents($langfile, $strings."\n", FILE_APPEND);
+        $gen->save_entity();
         echo "OK";
         exit;
     }
@@ -216,7 +196,7 @@ class rbentity2 extends \core_form\dynamic_form {
         $form->addElement('static', 'tablename_static', 'Table name', $this->get_table()->getName());
         $form->addElement('static', 'pluginname_static', 'Plugin', $this->tableplugin);
         $form->addElement('text', 'classname', 'Entity class name to generate');
-        $form->setType('classname', PARAM_COMPONENT);
+        $form->setType('classname', PARAM_ALPHANUMEXT);
 
         foreach ($this->get_fields() as $field) {
             $this->add_field($field);

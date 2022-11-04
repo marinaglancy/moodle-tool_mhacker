@@ -38,10 +38,19 @@ $PAGE->set_heading($SITE->fullname);
 $PAGE->navbar->add($title, $baseurl);
 
 if (!$CFG->debugdeveloper) {
-    print_error('error_notdebugging', 'tool_mhacker');
+    throw new moodle_exception('error_notdebugging', 'tool_mhacker');
+}
+if ($CFG->version < 2022041900) {
+    throw new coding_exception('Moodle 4.0 or later required');
 }
 
-if ($action === 'generateentity') {
+if ($action === 'generatedatasource') {
+    $form3 = new \tool_mhacker\form\rbdatasource();
+    $form3->set_data_for_dynamic_submission();
+    if ($form3->get_data()) {
+        $form3->process_dynamic_submission();
+    }
+} else if ($action === 'generateentity') {
     $form2 = new \tool_mhacker\form\rbentity2();
     $form2->set_data_for_dynamic_submission();
     if ($form2->get_data()) {
@@ -61,8 +70,15 @@ tool_mhacker_helper::print_tabs('rb');
 
 if (isset($form1)) {
     $form1->display();
+    $url = new moodle_url($baseurl, ['action' => 'generatedatasource']);
+    echo "<p>".html_writer::link($url, 'Generate datasource')."</p>";
+    echo "<p>&nbsp;<br><br><br><br></p>";
+    echo "<p>&nbsp;<br><br><br><br></p>";
+    echo "<p>&nbsp;<br><br><br><br></p>";
 } else if (isset($form2)) {
     $form2->display();
+} else if (isset($form3)) {
+    $form3->display();
 }
 
 echo $OUTPUT->footer();

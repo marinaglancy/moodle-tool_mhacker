@@ -30,7 +30,7 @@ class tool_mhacker_helper {
      * @return void
      */
     public static function print_tabs($currenttab) {
-        global $OUTPUT;
+        global $OUTPUT, $CFG;
         $tabs = array();
         $tabs[] = new tabobject('dbhacker', new moodle_url('/admin/tool/mhacker/dbhacker.php'),
                 get_string('dbhacker', 'tool_mhacker'));
@@ -38,8 +38,10 @@ class tool_mhacker_helper {
             get_string('stringhacker', 'tool_mhacker'));
         $tabs[] = new tabobject('testcoverage', new moodle_url('/admin/tool/mhacker/testcoverage.php'),
             get_string('testcoverage', 'tool_mhacker'));
-        $tabs[] = new tabobject('rb', new moodle_url('/admin/tool/mhacker/rb.php'),
-            get_string('reportbuilder', 'core_reportbuilder'));
+        if ($CFG->version >= 2022041900) {
+            $tabs[] = new tabobject('rb', new moodle_url('/admin/tool/mhacker/rb.php'),
+                get_string('reportbuilder', 'core_reportbuilder'));
+        }
         echo $OUTPUT->tabtree($tabs, $currenttab);
     }
 

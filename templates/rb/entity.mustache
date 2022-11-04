@@ -37,9 +37,7 @@
 namespace {{ component }}\reportbuilder\local\entities;
 {{/ namespace }}
 {{$ use }}
-{{#uses}}
-use {{{.}}};
-{{/uses}}
+{{{uses}}}
 {{/ use }}
 {{/ tool_mhacker/rb/boilerplate_php }}
 class {{ name }} extends base {
@@ -72,9 +70,12 @@ class {{ name }} extends base {
             $this->add_column($column);
         }
 
+        // All the filters defined by the entity can also be used as conditions.
         $filters = $this->get_all_filters();
         foreach ($filters as $filter) {
-            $this->add_filter($filter);
+            $this
+                ->add_filter($filter)
+                ->add_condition($filter);
         }
 
         return $this;
